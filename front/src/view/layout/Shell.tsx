@@ -20,6 +20,7 @@ import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { appVersion } from "@/config/runtime";
 import { fontMono, type Mode } from "@/config/theme";
 import { useAuth } from "@/core/auth/useAuth";
+import { RepositoryStatusPanel } from "./RepositoryStatusPanel";
 
 const NAV = [
 	{ to: "/", label: "Playbooks", icon: <PlayArrowRoundedIcon /> },
@@ -100,6 +101,7 @@ export function Shell({
 				</List>
 
 				<Box sx={{ flex: 1 }} />
+				<RepositoryStatusPanel />
 
 				<Divider />
 				<Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5 }}>

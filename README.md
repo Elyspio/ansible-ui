@@ -1,15 +1,15 @@
 # ansible-ui
 
-Web UI to launch and track Ansible playbook runs on a remote control node, over SSH.
+Web UI to launch and track Ansible playbook runs on a remote Rebond, over SSH.
 
 - **Launch** a playbook with `--limit` (picked from your inventory), `--check` and `--diff`.
-- **Watch** the live output streamed from the control node.
+- **Watch** the live output streamed from the Rebond.
 - **Browse** the full run history with per-host recap badges.
 - **Inspect** your inventory (read-only; vault-encrypted values are never shown).
 
-The app never runs Ansible itself: it connects over SSH to a *control node* you own — a
-machine that already has your Ansible repository cloned, SSH access to your managed hosts,
-and your vault password. Before each run the repository is refreshed with `git pull`.
+The app never runs Ansible itself: it connects over SSH to a Rebond you own — a machine that
+holds SSH access to your managed hosts and your vault password. The API synchronizes the Dépôt
+Ansible with its configured Révision distante and freezes it for the duration of each Run.
 
 ## Architecture
 
@@ -29,10 +29,15 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
     "Host": "ansible.example.lan",
     "Port": 22,
     "User": "ansible",
-    "PrivateKeyPath": "/secrets/id_ed25519",
-    "RepoPath": "/home/ansible/infrastructure",
-    "AnsibleDirectory": "ansible"
-  },
+		"PrivateKeyPath": "/secrets/id_ed25519",
+		"RepoPath": "/home/ansible/infrastructure",
+		"RepositoryUrl": "ssh://git@forge.example.lan/ops/ansible.git",
+		"RepositoryBranch": "main",
+		"AnsibleDirectory": "ansible"
+	},
+	"RepositorySynchronization": {
+		"ProbeInterval": "00:00:01"
+	},
   "Auth": {
     "Authority": "https://sso.example.lan/realms/main",
     "Audience": "ansible-ui"

@@ -15,11 +15,74 @@ public sealed partial class SshControlNode(IOptions<ControlNodeOptions> options,
 {
 	private readonly ControlNodeOptions _options = options.Value;
 
+	public async Task<string> GetRemoteRevisionAsync(CancellationToken ct = default)
+	{
+		var reference = $"refs/heads/{_options.RepositoryBranch}";
+		var (stdout, exitCode) = await RunCommandAsync(
+			$"git ls-remote --exit-code {Quote(_options.RepositoryUrl)} {Quote(reference)} 2>/dev/null", ct);
+		if (exitCode != 0)
+			throw new InvalidOperationException($"Remote branch '{_options.RepositoryBranch}' is unavailable");
+
+		var revision = stdout.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+		return revision ?? throw new InvalidOperationException("Git server returned no revision");
+	}
+
+	public async Task SynchronizeRepositoryAsync(CancellationToken ct = default)
+	{
+		var repo = Quote(_options.RepoPath);
+		var url = Quote(_options.RepositoryUrl);
+		var branch = Quote(_options.RepositoryBranch);
+		var parent = Quote(PosixParent(_options.RepoPath));
+		var script =
+			$"if [ -d {repo}/.git ]; then " +
+			$"cd {repo} && git remote set-url origin {url} && " +
+			$"git fetch --prune origin {branch} && " +
+			$"git checkout -B {branch} origin/{branch} && git reset --hard origin/{branch}; " +
+			$"elif [ -d {repo} ] && [ -z \"$(ls -A {repo})\" ]; then " +
+			$"git clone --single-branch --branch {branch} {url} {repo}; " +
+			$"elif [ -e {repo} ]; then echo 'Repository path exists but is not a Git clone' >&2; exit 1; " +
+			$"else mkdir -p {parent} && git clone --single-branch --branch {branch} {url} {repo}; fi";
+
+		var (_, exitCode) = await RunCommandAsync($"sh -c {Quote(script)}", ct);
+		if (exitCode != 0)
+			throw new InvalidOperationException("Failed to clone or reset the Ansible repository");
+	}
+
+	public async Task<string> GetLocalRevisionAsync(CancellationToken ct = default)
+	{
+		var (stdout, exitCode) = await RunCommandAsync(
+			$"git -C {Quote(_options.RepoPath)} rev-parse HEAD 2>/dev/null", ct);
+		if (exitCode != 0)
+			throw new InvalidOperationException("The Ansible repository clone has no HEAD");
+		return stdout.Trim();
+	}
+
+	public async Task<bool> HasTrackedChangesAsync(CancellationToken ct = default)
+	{
+		var (stdout, exitCode) = await RunCommandAsync(
+			$"git -C {Quote(_options.RepoPath)} status --porcelain --untracked-files=no 2>/dev/null", ct);
+		if (exitCode != 0)
+			throw new InvalidOperationException("Could not inspect the Ansible repository working tree");
+		return !string.IsNullOrWhiteSpace(stdout);
+	}
+
+	public async Task<bool> HasExpectedRepositoryConfigurationAsync(CancellationToken ct = default)
+	{
+		var (stdout, exitCode) = await RunCommandAsync(
+			$"git -C {Quote(_options.RepoPath)} remote get-url origin 2>/dev/null && " +
+			$"git -C {Quote(_options.RepoPath)} symbolic-ref --short HEAD 2>/dev/null", ct);
+		if (exitCode != 0)
+			return false;
+		var lines = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		return lines.Length == 2 &&
+			string.Equals(lines[0], _options.RepositoryUrl, StringComparison.Ordinal) &&
+			string.Equals(lines[1], _options.RepositoryBranch, StringComparison.Ordinal);
+	}
+
 	public async Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(CancellationToken ct = default)
 	{
-		// Pull first so the UI lists what would actually run; a pull failure falls back to the current clone.
 		var (stdout, _) = await RunCommandAsync(
-			$"cd {Quote(_options.WorkingDirectory)} && (git pull --ff-only >/dev/null 2>&1 || true) && find playbooks -type f \\( -name '*.yml' -o -name '*.yaml' \\) | sort", ct);
+			$"cd {Quote(_options.WorkingDirectory)} && find playbooks -type f \\( -name '*.yml' -o -name '*.yaml' \\) | sort", ct);
 
 		return stdout
 			.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -88,7 +151,6 @@ public sealed partial class SshControlNode(IOptions<ControlNodeOptions> options,
 		// PID line lets us interrupt the exact remote process on cancel; exec replaces the shell so $$ is ansible's PID.
 		var script =
 			$"cd {Quote(_options.WorkingDirectory)} && " +
-			"git pull --ff-only 2>&1 && " +
 			"echo \"__ANSIBLE_UI_PID__=$$\" && " +
 			$"exec env ANSIBLE_FORCE_COLOR=True {arguments} 2>&1";
 
@@ -190,6 +252,13 @@ public sealed partial class SshControlNode(IOptions<ControlNodeOptions> options,
 		if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array)
 			return [];
 		return [.. array.EnumerateArray().Select(e => e.GetString()!).Where(s => s is not null)];
+	}
+
+	private static string PosixParent(string path)
+	{
+		var trimmed = path.TrimEnd('/');
+		var separator = trimmed.LastIndexOf('/');
+		return separator < 0 ? "." : separator == 0 ? "/" : trimmed[..separator];
 	}
 
 	/// <summary>POSIX single-quote escaping.</summary>

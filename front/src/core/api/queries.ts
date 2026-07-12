@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { http } from "./client";
-import type { Inventory, Playbook, Run } from "./types";
+import type { Inventory, Playbook, RepositoryStatus, Run } from "./types";
 
 export const qk = {
 	playbooks: ["playbooks"] as const,
@@ -8,13 +8,14 @@ export const qk = {
 	run: (id: string) => ["runs", id] as const,
 	inventory: ["inventory"] as const,
 	hostVars: (host: string) => ["inventory", "hosts", host, "vars"] as const,
+	repository: ["repository"] as const,
 };
 
 export function usePlaybooks() {
 	return useQuery({
 		queryKey: qk.playbooks,
 		queryFn: async () => (await http.get<Playbook[]>("/api/playbooks")).data,
-		// Listing does a git pull on the control node; keep it for a while.
+		// SignalR invalidates this snapshot when the repository revision changes.
 		staleTime: 60_000,
 	});
 }
@@ -48,5 +49,12 @@ export function useHostVars(host: string | null) {
 		queryFn: async () => (await http.get<string>(`/api/inventory/hosts/${host}/vars`)).data,
 		enabled: !!host,
 		retry: false,
+	});
+}
+
+export function useRepositoryStatus() {
+	return useQuery({
+		queryKey: qk.repository,
+		queryFn: async () => (await http.get<RepositoryStatus>("/api/repository/status")).data,
 	});
 }

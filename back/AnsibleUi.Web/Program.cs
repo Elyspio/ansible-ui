@@ -16,7 +16,7 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", true, true);
 builder.AddServiceDefaults();
 
 builder.Services.AddAnsibleUiDb(builder.Configuration);
-builder.Services.AddAnsibleUiCore();
+builder.Services.AddAnsibleUiCore(builder.Configuration);
 builder.Services.AddAnsibleUiSockets();
 builder.Services.AddAnsibleUiAdapters(builder.Configuration);
 builder.Services.AddAnsibleUiAuth(builder.Configuration);

@@ -46,3 +46,14 @@ export interface Inventory {
 	groups: InventoryGroup[];
 	hosts: string[];
 }
+
+export interface RepositoryStatus {
+	revision: string | null;
+	remoteRevision: string | null;
+	lastCheckedAt: string | null;
+	lastSynchronizedAt: string | null;
+	isSynchronizing: boolean;
+	isRunningPlaybook: boolean;
+	isDegraded: boolean;
+	error: string | null;
+}

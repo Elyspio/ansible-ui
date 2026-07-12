@@ -25,6 +25,14 @@ public sealed class ControlNodeOptions
 	[Required(AllowEmptyStrings = false, ErrorMessage = "ControlNode:RepoPath is required")]
 	public string RepoPath { get; set; } = "";
 
+	/// <summary>Git URL reachable from the control node.</summary>
+	[Required(AllowEmptyStrings = false, ErrorMessage = "ControlNode:RepositoryUrl is required")]
+	public string RepositoryUrl { get; set; } = "";
+
+	/// <summary>Authoritative remote branch mirrored on the control node.</summary>
+	[Required(AllowEmptyStrings = false, ErrorMessage = "ControlNode:RepositoryBranch is required")]
+	public string RepositoryBranch { get; set; } = "";
+
 	/// <summary>Sub-directory of the repo holding ansible.cfg and playbooks/; empty when the repo root is the Ansible directory.</summary>
 	public string AnsibleDirectory { get; set; } = "";
 

@@ -4,6 +4,7 @@ import { CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
 import { SnackbarProvider } from "notistack";
 import { buildTheme, type Mode } from "@/config/theme";
 import { useRunsRealtime } from "@/core/signalr/useRunsRealtime";
+import { useRepositoryRealtime } from "@/core/signalr/useRepositoryRealtime";
 import { Shell } from "@/view/layout/Shell";
 import { PlaybooksPage } from "@/view/playbooks/PlaybooksPage";
 import { HistoryPage } from "@/view/runs/HistoryPage";
@@ -14,6 +15,7 @@ const MODE_KEY = "ansible-ui.mode";
 
 function Realtime() {
 	useRunsRealtime();
+	useRepositoryRealtime();
 	return null;
 }
 

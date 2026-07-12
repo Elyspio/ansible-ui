@@ -7,11 +7,11 @@ namespace AnsibleUi.Web.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/playbooks")]
-public sealed class PlaybooksController(IControlNode controlNode) : ControllerBase
+public sealed class PlaybooksController(IRepositorySynchronizer synchronizer) : ControllerBase
 {
 	[HttpGet]
 	public async Task<IActionResult> List(CancellationToken ct)
 	{
-		return Ok(await controlNode.ListPlaybooksAsync(ct));
+		return Ok((await synchronizer.GetSnapshotAsync(ct)).Playbooks);
 	}
 }

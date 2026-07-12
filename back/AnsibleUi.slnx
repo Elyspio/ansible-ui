@@ -9,6 +9,7 @@
 	</Folder>
 	<Project Path="AnsibleUi.Abstractions/AnsibleUi.Abstractions.csproj"/>
 	<Project Path="AnsibleUi.Core/AnsibleUi.Core.csproj"/>
+	<Project Path="AnsibleUi.Core.Tests/AnsibleUi.Core.Tests.csproj"/>
 	<Project Path="AnsibleUi.Sockets/AnsibleUi.Sockets.csproj"/>
 	<Project Path="AnsibleUi.Web/AnsibleUi.Web.csproj"/>
 </Solution>

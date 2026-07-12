@@ -73,7 +73,7 @@ public sealed class RunLauncher(IServiceProvider services, ILogger<RunLauncher> 
 	{
 		var repository = scoped.GetRequiredService<IRunRepository>();
 		var notifier = scoped.GetRequiredService<IRealtimeNotifier>();
-		var controlNode = scoped.GetRequiredService<IControlNode>();
+		var synchronizer = scoped.GetRequiredService<IRepositorySynchronizer>();
 
 		using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 		_active[run.Id] = cts;
@@ -86,7 +86,7 @@ public sealed class RunLauncher(IServiceProvider services, ILogger<RunLauncher> 
 		var buffer = new StringBuilder();
 		try
 		{
-			var exitCode = await controlNode.ExecutePlaybookAsync(run.Playbook, run.Options,
+			var exitCode = await synchronizer.ExecutePlaybookAsync(run.Playbook, run.Options,
 				async chunk =>
 				{
 					buffer.Append(chunk);

@@ -28,4 +28,14 @@ public sealed class RealtimeNotifier(IHubContext<RunHub> hub) : IRealtimeNotifie
 			recap = run.Recap
 		});
 	}
+
+	public Task RepositoryChangedAsync(RepositoryStatus status)
+	{
+		return hub.Clients.All.SendAsync("repositoryChanged", status);
+	}
+
+	public Task RepositoryStatusChangedAsync(RepositoryStatus status)
+	{
+		return hub.Clients.All.SendAsync("repositoryStatusChanged", status);
+	}
 }

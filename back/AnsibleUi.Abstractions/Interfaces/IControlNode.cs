@@ -8,7 +8,22 @@ namespace AnsibleUi.Abstractions.Interfaces;
 /// </summary>
 public interface IControlNode
 {
-	/// <summary>Refreshes the repository (git pull) and lists executable playbooks.</summary>
+	/// <summary>Returns the configured branch revision advertised by the Git server.</summary>
+	Task<string> GetRemoteRevisionAsync(CancellationToken ct = default);
+
+	/// <summary>Clones or resets the repository to the configured remote branch.</summary>
+	Task SynchronizeRepositoryAsync(CancellationToken ct = default);
+
+	/// <summary>Returns HEAD of the repository clone.</summary>
+	Task<string> GetLocalRevisionAsync(CancellationToken ct = default);
+
+	/// <summary>Whether tracked files differ from HEAD. Untracked and ignored files are excluded.</summary>
+	Task<bool> HasTrackedChangesAsync(CancellationToken ct = default);
+
+	/// <summary>Whether origin URL and current branch match configured values.</summary>
+	Task<bool> HasExpectedRepositoryConfigurationAsync(CancellationToken ct = default);
+
+	/// <summary>Lists executable playbooks from the current clone.</summary>
 	Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(CancellationToken ct = default);
 
 	/// <summary>Groups and hosts from ansible-inventory. Vars are stripped: vault values must never leave the control node.</summary>
@@ -18,7 +33,7 @@ public interface IControlNode
 	Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default);
 
 	/// <summary>
-	///     Refreshes the repository then executes a playbook, invoking <paramref name="onOutput" /> for each
+	///     Executes a playbook from the current clone, invoking <paramref name="onOutput" /> for each
 	///     output chunk (raw, ANSI colors preserved). Returns the process exit code. Cancelling
 	///     <paramref name="ct" /> interrupts the remote process (SIGINT, then SIGKILL after a grace period).
 	/// </summary>

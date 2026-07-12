@@ -34,6 +34,8 @@ if (isE2E)
 		.WithEnvironment("ControlNode__User", "e2e")
 		.WithEnvironment("ControlNode__PrivateKeyPath", "e2e")
 		.WithEnvironment("ControlNode__RepoPath", "/e2e");
+	api.WithEnvironment("ControlNode__RepositoryUrl", "ssh://git@example.invalid/ansible.git")
+		.WithEnvironment("ControlNode__RepositoryBranch", "main");
 
 // Vite front (Vite+). In dev the Vite proxy routes /api and /hubs to the API.
 // The endpoint is pinned on 5173 and un-proxied: stable OIDC origin + working HMR websocket.

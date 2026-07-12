@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { http } from "./client";
 import { qk } from "./queries";
-import type { Run } from "./types";
+import type { RepositoryStatus, Run } from "./types";
 
 export interface SubmitRunRequest {
 	playbook: string;
@@ -26,6 +26,19 @@ export function useCancelRun() {
 		onSuccess: (_, id) => {
 			void qc.invalidateQueries({ queryKey: qk.runs });
 			void qc.invalidateQueries({ queryKey: qk.run(id) });
+		},
+	});
+}
+
+export function useSynchronizeRepository() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async () =>
+			(await http.post<RepositoryStatus>("/api/repository/synchronize")).data,
+		onSuccess: () => {
+			void qc.invalidateQueries({ queryKey: qk.repository });
+			void qc.invalidateQueries({ queryKey: qk.playbooks });
+			void qc.invalidateQueries({ queryKey: qk.inventory });
 		},
 	});
 }
