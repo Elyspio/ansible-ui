@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Node
+node_modules/
+dist/
+
+# Local-only configuration (control node host, OIDC dev values…)
+appsettings.Local.json
+
+# Deployment SSH keys (never commit)
+/deploy/keys/ansible-ui-elylan_ed25519
+/deploy/keys/ansible-ui-elylan_ed25519.pub
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9"/>
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9"/>
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3"/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\AnsibleUi.Abstractions\AnsibleUi.Abstractions.csproj"/>
+		<ProjectReference Include="..\AnsibleUi.Core\AnsibleUi.Core.csproj"/>
+		<ProjectReference Include="..\AnsibleUi.Adapters.MongoDB\AnsibleUi.Adapters.MongoDB.csproj"/>
+		<ProjectReference Include="..\AnsibleUi.Sockets\AnsibleUi.Sockets.csproj"/>
+		<ProjectReference Include="..\AnsibleUi.Adapters.Ssh\AnsibleUi.Adapters.Ssh.csproj"/>
+		<ProjectReference Include="..\AnsibleUi.ServiceDefaults\AnsibleUi.ServiceDefaults.csproj"/>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Update="appsettings.Development.json">
+	    <DependentUpon>appsettings.json</DependentUpon>
+	  </Content>
+	</ItemGroup>
+
+</Project>

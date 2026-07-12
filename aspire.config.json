@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "back/AnsibleUi.AppHost/AnsibleUi.AppHost.csproj"
+  }
+}

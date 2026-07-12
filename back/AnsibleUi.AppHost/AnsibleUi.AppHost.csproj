@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+
+	<ItemGroup>
+		<ProjectReference Include="..\AnsibleUi.Web\AnsibleUi.Web.csproj"/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Aspire.Hosting.JavaScript" Version="13.4.6"/>
+		<PackageReference Include="Aspire.Hosting.Keycloak" Version="13.4.6-preview.1.26319.6"/>
+		<PackageReference Include="Aspire.Hosting.MongoDB" Version="13.4.6"/>
+	</ItemGroup>
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<UserSecretsId>9c1c46be-6a4e-4a44-9107-2ab8be31b1a3</UserSecretsId>
+	</PropertyGroup>
+
+</Project>

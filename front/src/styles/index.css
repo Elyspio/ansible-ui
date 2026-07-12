@@ -1,0 +1,8 @@
+/* Thin scrollbars everywhere; the terminal pane keeps its own dark track. */
+* {
+	scrollbar-width: thin;
+}
+
+::selection {
+	background: rgba(47, 191, 135, 0.35);
+}

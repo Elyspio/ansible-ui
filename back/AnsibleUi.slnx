@@ -1,0 +1,14 @@
+<Solution>
+	<Folder Name="/Adapters/">
+		<Project Path="AnsibleUi.Adapters.MongoDB/AnsibleUi.Adapters.MongoDB.csproj"/>
+		<Project Path="AnsibleUi.Adapters.Ssh/AnsibleUi.Adapters.Ssh.csproj"/>
+	</Folder>
+	<Folder Name="/Aspire/">
+		<Project Path="AnsibleUi.AppHost/AnsibleUi.AppHost.csproj"/>
+		<Project Path="AnsibleUi.ServiceDefaults/AnsibleUi.ServiceDefaults.csproj"/>
+	</Folder>
+	<Project Path="AnsibleUi.Abstractions/AnsibleUi.Abstractions.csproj"/>
+	<Project Path="AnsibleUi.Core/AnsibleUi.Core.csproj"/>
+	<Project Path="AnsibleUi.Sockets/AnsibleUi.Sockets.csproj"/>
+	<Project Path="AnsibleUi.Web/AnsibleUi.Web.csproj"/>
+</Solution>
