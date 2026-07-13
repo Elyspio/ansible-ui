@@ -15,9 +15,7 @@ public sealed class RepositorySynchronizer(
 	private readonly SemaphoreSlim _repositoryLock = new(1, 1);
 	private readonly SemaphoreSlim _inventoryFactsLock = new(1, 1);
 	private RepositorySnapshot? _snapshot;
-	private Inventory? _inventoryWithFacts;
-	private DateTimeOffset? _inventoryFactsExpiresAt;
-	private string? _inventoryFactsRevision;
+	private FactsCache? _factsCache;
 	private Task<RepositoryStatus>? _syncTask;
 	private RepositoryStatus _status = new(null, null, null, null, false, false, false, null);
 
@@ -42,14 +40,19 @@ public sealed class RepositorySynchronizer(
 	public async Task<Inventory> GetInventoryAsync(CancellationToken ct = default)
 	{
 		var snapshot = await GetSnapshotAsync(ct);
-		if (HasFreshInventoryFacts(snapshot.Revision)) return _inventoryWithFacts!;
+		if (FreshFacts(snapshot.Revision) is { } fresh) return fresh;
 
-		await _inventoryFactsLock.WaitAsync(ct);
+		// Never queue behind another probe or a running playbook — the inventory must stay
+		// responsive while a run holds the repository. Degrade to the last facts for this
+		// revision (whatever their age) or to the structure-only inventory instead of blocking.
+		if (!await _inventoryFactsLock.WaitAsync(TimeSpan.Zero, ct))
+			return StaleFactsOrStructure(snapshot);
 		try
 		{
-			if (HasFreshInventoryFacts(snapshot.Revision)) return _inventoryWithFacts!;
+			if (FreshFacts(snapshot.Revision) is { } refreshed) return refreshed;
 
-			await _repositoryLock.WaitAsync(ct);
+			if (!await _repositoryLock.WaitAsync(TimeSpan.Zero, ct))
+				return StaleFactsOrStructure(snapshot);
 			try
 			{
 				var facts = await ansibleRebond.GetInventoryHostFactsAsync(ct);
@@ -81,10 +84,12 @@ public sealed class RepositorySynchronizer(
 						LastChecked = checkedAt,
 					};
 				}).ToList();
-				_inventoryWithFacts = new Inventory(snapshot.Inventory.Groups, hosts);
-				_inventoryFactsRevision = snapshot.Revision;
-				_inventoryFactsExpiresAt = checkedAt.AddSeconds(60);
-				return _inventoryWithFacts;
+				var cache = new FactsCache(
+					new Inventory(snapshot.Inventory.Groups, hosts),
+					snapshot.Revision,
+					checkedAt.AddSeconds(FactsTtlSeconds));
+				_factsCache = cache;
+				return cache.Inventory;
 			}
 			finally
 			{
@@ -230,9 +235,7 @@ public sealed class RepositorySynchronizer(
 		var inventory = await ansibleRebond.GetInventoryAsync(ct);
 		var changed = _snapshot?.Revision != localRevision;
 		_snapshot = new RepositorySnapshot(localRevision, playbooks, inventory);
-		_inventoryWithFacts = null;
-		_inventoryFactsExpiresAt = null;
-		_inventoryFactsRevision = null;
+		_factsCache = null;
 		UpdateStatus(status => status with
 		{
 			Revision = localRevision,
@@ -261,8 +264,23 @@ public sealed class RepositorySynchronizer(
 		lock (_statusLock) _status = update(_status);
 	}
 
-	private bool HasFreshInventoryFacts(string revision) =>
-		_inventoryWithFacts is not null &&
-		_inventoryFactsRevision == revision &&
-		_inventoryFactsExpiresAt > DateTimeOffset.UtcNow;
+	private Inventory? FreshFacts(string revision)
+	{
+		// Single reference read: a concurrent writer can never expose a torn revision/expiry.
+		var cache = _factsCache;
+		return cache is not null && cache.Revision == revision && cache.ExpiresAt > DateTimeOffset.UtcNow
+			? cache.Inventory
+			: null;
+	}
+
+	private Inventory StaleFactsOrStructure(RepositorySnapshot snapshot)
+	{
+		var cache = _factsCache;
+		return cache is not null && cache.Revision == snapshot.Revision ? cache.Inventory : snapshot.Inventory;
+	}
+
+	private const int FactsTtlSeconds = 60;
+
+	/// <summary>Facts-enriched inventory for one repository revision, valid until <paramref name="ExpiresAt"/>.</summary>
+	private sealed record FactsCache(Inventory Inventory, string Revision, DateTimeOffset ExpiresAt);
 }

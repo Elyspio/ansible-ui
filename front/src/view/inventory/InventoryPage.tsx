@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
 	Alert,
+	alpha,
 	Box,
 	CircularProgress,
 	InputBase,
@@ -12,49 +13,30 @@ import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownR
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import DnsRoundedIcon from "@mui/icons-material/DnsRounded";
-import { useInventory, useRepositoryStatus } from "@/core/api/queries";
+import { useHostVars, useInventory, useRepositoryStatus } from "@/core/api/queries";
 import type { InventoryHost, InventoryHostStatus } from "@/core/api/types";
-import { fontMono, fontSans } from "@/config/theme";
+import { fontMono, fontSans, terminal } from "@/config/theme";
+import { formatRelative } from "@/core/format";
 import { EmptyState } from "@/view/components/EmptyState";
 
-const groupColors: Record<string, string> = {
-	DB: "#f59e0b",
-	DOCKER: "#3b82f6",
-	FORGEJO_RUNNERS: "#8b5cf6",
-	KUBE: "#10b981",
-	OTHERS: "#94a3b8",
-	PROXMOX: "#ec4899",
-};
-
-const fallbackGroupColors = ["#64748b", "#0ea5e9", "#14b8a6", "#a855f7"];
+// Deterministic per-group hue derived from the name — no inventory-specific mapping,
+// the app stays generic whatever groups the user's repository defines.
+const groupPalette = ["#64748b", "#0ea5e9", "#14b8a6", "#f59e0b", "#3b82f6", "#10b981", "#ec4899"];
 const explorerHeaderHeight = 110;
 
+// Theme palette tokens so light/dark modes stay consistent.
 function statusColor(status: InventoryHostStatus) {
-	return status === "reachable" ? "#34d399" : status === "unreachable" ? "#f87171" : "#94a3b8";
+	return status === "reachable"
+		? "success.main"
+		: status === "unreachable"
+			? "error.main"
+			: "text.disabled";
 }
 
 function groupColor(group: string) {
 	const normalized = group.toUpperCase();
-	if (groupColors[normalized]) return groupColors[normalized];
 	const hash = [...normalized].reduce((value, character) => value + character.charCodeAt(0), 0);
-	return fallbackGroupColors[hash % fallbackGroupColors.length];
-}
-
-function statusLabel(status: InventoryHostStatus) {
-	return status === "reachable"
-		? "reachable"
-		: status === "unreachable"
-			? "unreachable"
-			: "unknown";
-}
-
-function relativeTime(value: string | null) {
-	if (!value) return "—";
-	const seconds = Math.max(0, (Date.now() - new Date(value).getTime()) / 1000);
-	if (seconds < 60) return `${Math.floor(seconds)}s ago`;
-	if (seconds < 3_600) return `${Math.floor(seconds / 60)}m ago`;
-	if (seconds < 86_400) return `${Math.floor(seconds / 3_600)}h ago`;
-	return `${Math.floor(seconds / 86_400)}d ago`;
+	return groupPalette[hash % groupPalette.length];
 }
 
 function uptime(value: string | null) {
@@ -63,7 +45,9 @@ function uptime(value: string | null) {
 	if (!match) return value;
 	const days = Number(match[1] ?? 0);
 	const hours = Number(match[2]);
-	return days > 0 ? `${days} day${days === 1 ? "" : "s"}` : `${hours}h`;
+	const minutes = Number(match[3]);
+	if (days > 0) return `${days} day${days === 1 ? "" : "s"}`;
+	return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
 function StatusDot({ status }: { status: InventoryHostStatus }) {
@@ -120,7 +104,7 @@ export function InventoryPage() {
 		"--text": theme.palette.text.primary,
 		"--dim": theme.palette.text.secondary,
 		"--chip-bg": theme.palette.mode === "dark" ? "#121815" : "#f5f7f6",
-		"--accent": "#34d399",
+		"--accent": theme.palette.primary.main,
 	} as React.CSSProperties;
 
 	return (
@@ -175,7 +159,7 @@ export function InventoryPage() {
 						sx={{
 							px: 1.5,
 							py: 1,
-							border: "1px solid rgba(52, 211, 153, 0.3)",
+							border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
 							borderRadius: 1.5,
 							color: "var(--accent)",
 							bgcolor: "var(--chip-bg)",
@@ -244,7 +228,7 @@ export function InventoryPage() {
 								fontSize: 12.5,
 							}}
 						>
-							<StatusDot status={status} /> {summary[status]} {statusLabel(status)}
+							<StatusDot status={status} /> {summary[status]} {status}
 						</Box>
 					))}
 					<Typography
@@ -446,9 +430,12 @@ export function InventoryPage() {
 														fontSize: 12.5,
 														color: "var(--text)",
 														bgcolor: active
-															? theme.palette.mode === "dark"
-																? "rgba(52, 211, 153, 0.10)"
-																: "rgba(52, 211, 153, 0.13)"
+															? alpha(
+																	theme.palette.primary.main,
+																	theme.palette.mode === "dark"
+																		? 0.1
+																		: 0.13,
+																)
 															: "transparent",
 														"&:hover": {
 															bgcolor: active
@@ -545,7 +532,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 						flexShrink: 0,
 					}}
 				>
-					<StatusDot status={host.status} /> {statusLabel(host.status)}
+					<StatusDot status={host.status} /> {host.status}
 				</Box>
 			</Box>
 			<Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, mt: 4 }}>
@@ -591,7 +578,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 					["ansible_distribution", host.os ?? "—"],
 					["ansible_default_ipv4.address", host.ip ?? "—"],
 					["uptime", uptime(host.uptime)],
-					["last_checked", relativeTime(host.lastChecked)],
+					["last_checked", formatRelative(host.lastChecked)],
 					...(host.status === "unknown" && host.error
 						? [["probe_error", host.error]]
 						: []),
@@ -619,6 +606,53 @@ function HostDetail({ host }: { host: InventoryHost }) {
 					</Box>
 				))}
 			</Box>
+			<HostVars host={host.name} />
+		</>
+	);
+}
+
+/** Raw host_vars/vars.yml — served verbatim by the API, inline vault values stay encrypted. */
+function HostVars({ host }: { host: string }) {
+	const vars = useHostVars(host);
+
+	return (
+		<>
+			<Typography variant="overline" color="text.secondary" sx={{ display: "block", mt: 4 }}>
+				host_vars / vars.yml
+			</Typography>
+			{vars.isPending && (
+				<Box sx={{ display: "grid", placeItems: "center", py: 4 }}>
+					<CircularProgress size={20} />
+				</Box>
+			)}
+			{vars.isError && (
+				<Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
+					No vars.yml for this host (or it could not be read).
+				</Alert>
+			)}
+			{vars.data && (
+				<Box
+					component="pre"
+					sx={{
+						m: 0,
+						mt: 1.5,
+						maxHeight: 360,
+						overflow: "auto",
+						bgcolor: terminal.background,
+						color: terminal.text,
+						border: `1px solid ${terminal.border}`,
+						borderRadius: 2,
+						px: 2,
+						py: 1.5,
+						fontFamily: terminal.fontFamily,
+						fontSize: 12.5,
+						lineHeight: 1.6,
+						colorScheme: "dark",
+					}}
+				>
+					{vars.data}
+				</Box>
+			)}
 		</>
 	);
 }

@@ -133,6 +133,86 @@ public sealed class RepositorySynchronizerTests
 		Assert.Equal(2, gitRepository.SynchronizeCalls);
 	}
 
+	[Fact]
+	public async Task Inventory_facts_merge_probed_values_and_flag_missing_hosts()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var ansibleRebond = new FakeAnsibleRebond
+		{
+			Inventory = new Inventory(
+				[new InventoryGroup("web", ["host-1", "host-2"], [])],
+				[
+					new InventoryHost("host-1", null, null, null, [], "unknown", null, null, null),
+					new InventoryHost("host-2", null, null, null, [], "unknown", null, null, null),
+				]),
+			HostFacts = [new InventoryHostFacts("host-1", "reachable", "10.0.0.1", "Debian", "Debian", null, TimeSpan.FromHours(2))],
+		};
+		var synchronizer = CreateSynchronizer(new FakeGitRepository(), ansibleRebond);
+
+		var inventory = await synchronizer.GetInventoryAsync(ct);
+
+		var probed = Assert.Single(inventory.Hosts, host => host.Name == "host-1");
+		Assert.Equal("reachable", probed.Status);
+		Assert.Equal("10.0.0.1", probed.Ip);
+		Assert.Equal(TimeSpan.FromHours(2), probed.Uptime);
+		Assert.Equal(["web"], probed.Groups);
+		Assert.NotNull(probed.LastChecked);
+		var missing = Assert.Single(inventory.Hosts, host => host.Name == "host-2");
+		Assert.Equal("unknown", missing.Status);
+		Assert.Equal("Fact probe returned no result for this host.", missing.Error);
+		Assert.NotNull(missing.LastChecked);
+	}
+
+	[Fact]
+	public async Task Inventory_facts_are_cached_between_calls()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var ansibleRebond = new FakeAnsibleRebond();
+		var synchronizer = CreateSynchronizer(new FakeGitRepository(), ansibleRebond);
+
+		await synchronizer.GetInventoryAsync(ct);
+		await synchronizer.GetInventoryAsync(ct);
+
+		Assert.Equal(1, ansibleRebond.FactsCalls);
+	}
+
+	[Fact]
+	public async Task Snapshot_refresh_invalidates_the_facts_cache()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var gitRepository = new FakeGitRepository();
+		var ansibleRebond = new FakeAnsibleRebond();
+		var synchronizer = CreateSynchronizer(gitRepository, ansibleRebond);
+		await synchronizer.GetInventoryAsync(ct);
+
+		gitRepository.RemoteRevision = "def456";
+		await synchronizer.SynchronizeAsync(ct);
+		await synchronizer.GetInventoryAsync(ct);
+
+		Assert.Equal(2, ansibleRebond.FactsCalls);
+	}
+
+	[Fact]
+	public async Task Inventory_stays_available_while_a_playbook_holds_the_repository()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var ansibleRebond = new FakeAnsibleRebond();
+		var synchronizer = CreateSynchronizer(new FakeGitRepository(), ansibleRebond);
+		await synchronizer.GetSnapshotAsync(ct);
+		ansibleRebond.ExecuteStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		ansibleRebond.FinishExecute = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var run = synchronizer.ExecutePlaybookAsync("playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
+		await ansibleRebond.ExecuteStarted.Task;
+
+		// Degrades to the structure-only inventory instead of queueing behind the run.
+		var inventory = await synchronizer.GetInventoryAsync(ct);
+
+		Assert.Equal(0, ansibleRebond.FactsCalls);
+		Assert.All(inventory.Hosts, host => Assert.Equal("unknown", host.Status));
+		ansibleRebond.FinishExecute.SetResult();
+		await run;
+	}
+
 	private static RepositorySynchronizer CreateSynchronizer(FakeGitRepository gitRepository, FakeAnsibleRebond ansibleRebond) => new(
 		gitRepository,
 		ansibleRebond,
@@ -174,15 +254,22 @@ public sealed class RepositorySynchronizerTests
 	{
 		public TaskCompletionSource? ExecuteStarted { get; set; }
 		public TaskCompletionSource? FinishExecute { get; set; }
+		public Inventory Inventory { get; set; } =
+			new([], [new InventoryHost("host-1", null, null, null, [], "unknown", null, null, null)]);
+		public IReadOnlyList<InventoryHostFacts> HostFacts { get; set; } = [];
+		public int FactsCalls { get; private set; }
 
 		public Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(CancellationToken ct = default) =>
 			Task.FromResult<IReadOnlyList<Playbook>>([new("playbooks/site.yml", "site", "base")]);
 
 		public Task<Inventory> GetInventoryAsync(CancellationToken ct = default) =>
-			Task.FromResult(new Inventory([], [new InventoryHost("host-1", null, null, null, [], "unknown", null, null, null)]));
+			Task.FromResult(Inventory);
 
-		public Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default) =>
-			Task.FromResult<IReadOnlyList<InventoryHostFacts>>([]);
+		public Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default)
+		{
+			FactsCalls++;
+			return Task.FromResult(HostFacts);
+		}
 
 		public Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default) => Task.FromResult<string?>(null);
 
