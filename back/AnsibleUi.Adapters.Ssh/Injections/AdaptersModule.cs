@@ -9,11 +9,11 @@ public static class AdaptersModule
 {
 	public static IServiceCollection AddAnsibleUiAdapters(this IServiceCollection services, IConfiguration config)
 	{
-		services.AddOptions<ControlNodeOptions>()
-			.Bind(config.GetSection(ControlNodeOptions.SectionName))
+		services.AddOptions<SshConnectionOptions>()
+			.Bind(config.GetSection(SshConnectionOptions.SectionName))
 			.ValidateDataAnnotations()
 			.ValidateOnStart();
-		services.AddSingleton<IControlNode, SshControlNode>();
+		services.AddSingleton<IRemoteCommandExecutor, SshRemoteCommandExecutor>();
 		return services;
 	}
 }

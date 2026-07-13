@@ -1,5 +1,8 @@
 using AnsibleUi.Adapters.MongoDB.Injections;
 using AnsibleUi.Adapters.Ssh.Injections;
+using AnsibleUi.Adapters.Git;
+using AnsibleUi.Adapters.Ansible;
+using AnsibleUi.Abstractions;
 using AnsibleUi.Core.Injections;
 using AnsibleUi.ServiceDefaults;
 using AnsibleUi.Sockets.Hubs;
@@ -19,6 +22,11 @@ builder.Services.AddAnsibleUiDb(builder.Configuration);
 builder.Services.AddAnsibleUiCore(builder.Configuration);
 builder.Services.AddAnsibleUiSockets();
 builder.Services.AddAnsibleUiAdapters(builder.Configuration);
+builder.Services.AddAnsibleUiGit(builder.Configuration);
+builder.Services.AddAnsibleUiAnsible(builder.Configuration);
+var repositoryPath = builder.Configuration.GetValue<string>($"{GitRepositoryOptions.SectionName}:Path") ?? "";
+builder.Services.AddOptions<AnsibleOptions>()
+	.Validate(options => PosixShell.IsContainedIn(options.WorkingDirectory, repositoryPath), "Ansible:WorkingDirectory must be inside GitRepository:Path");
 builder.Services.AddAnsibleUiAuth(builder.Configuration);
 
 builder.Services.AddControllers(options => options.Filters.Add<HttpExceptionFilter>());

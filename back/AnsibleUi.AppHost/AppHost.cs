@@ -29,13 +29,16 @@ var api = builder.AddProject<AnsibleUi_Web>("api")
 	.WithEnvironment("Auth__Audience", clientId);
 
 if (isE2E)
+{
 	// History E2E tests do not call SSH, but startup validation still requires a complete control-node shape.
-	api.WithEnvironment("ControlNode__Host", "localhost")
-		.WithEnvironment("ControlNode__User", "e2e")
-		.WithEnvironment("ControlNode__PrivateKeyPath", "e2e")
-		.WithEnvironment("ControlNode__RepoPath", "/e2e");
-	api.WithEnvironment("ControlNode__RepositoryUrl", "ssh://git@example.invalid/ansible.git")
-		.WithEnvironment("ControlNode__RepositoryBranch", "main");
+	api.WithEnvironment("SshConnection__Host", "localhost")
+		.WithEnvironment("SshConnection__User", "e2e")
+		.WithEnvironment("SshConnection__PrivateKeyPath", "e2e")
+		.WithEnvironment("GitRepository__Path", "/e2e")
+		.WithEnvironment("GitRepository__Url", "ssh://git@example.invalid/ansible.git")
+		.WithEnvironment("GitRepository__Branch", "main")
+		.WithEnvironment("Ansible__WorkingDirectory", "/e2e");
+}
 
 // Vite front (Vite+). In dev the Vite proxy routes /api and /hubs to the API.
 // The endpoint is pinned on 5173 and un-proxied: stable OIDC origin + working HMR websocket.

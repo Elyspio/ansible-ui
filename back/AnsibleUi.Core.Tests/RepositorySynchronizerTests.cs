@@ -12,8 +12,8 @@ public sealed class RepositorySynchronizerTests
 	public async Task Repository_synchronizer_exposes_published_snapshot_through_its_interface()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
-		IRepositorySynchronizer synchronizer = CreateSynchronizer(controlNode);
+		var gitRepository = new FakeGitRepository();
+		IRepositorySynchronizer synchronizer = CreateSynchronizer(gitRepository, new FakeAnsibleRebond());
 
 		var status = await synchronizer.SynchronizeAsync(ct);
 		var snapshot = await synchronizer.GetSnapshotAsync(ct);
@@ -29,17 +29,19 @@ public sealed class RepositorySynchronizerTests
 	public async Task Initial_snapshot_is_shared_by_parallel_callers()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
+		var gitRepository = new FakeGitRepository();
+		var ansibleRebond = new FakeAnsibleRebond();
 		var synchronizer = new RepositorySynchronizer(
-			controlNode,
+			gitRepository,
+			ansibleRebond,
 			new FakeNotifier(),
 			NullLogger<RepositorySynchronizer>.Instance);
 
 		var snapshots = await Task.WhenAll(
 			Enumerable.Range(0, 8).Select(_ => synchronizer.GetSnapshotAsync(ct)));
 
-		Assert.Equal(1, controlNode.RemoteRevisionCalls);
-		Assert.Equal(1, controlNode.SynchronizeCalls);
+		Assert.Equal(1, gitRepository.RemoteRevisionCalls);
+		Assert.Equal(1, gitRepository.SynchronizeCalls);
 		Assert.All(snapshots, snapshot => Assert.Equal("abc123", snapshot.Revision));
 	}
 
@@ -47,10 +49,10 @@ public sealed class RepositorySynchronizerTests
 	public async Task Failed_probe_keeps_last_snapshot_and_marks_status_degraded()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
-		var synchronizer = CreateSynchronizer(controlNode);
+		var gitRepository = new FakeGitRepository();
+		var synchronizer = CreateSynchronizer(gitRepository, new FakeAnsibleRebond());
 		var initial = await synchronizer.GetSnapshotAsync(ct);
-		controlNode.RemoteRevisionError = new IOException("Forge unavailable");
+		gitRepository.RemoteRevisionError = new IOException("Forge unavailable");
 
 		var status = await synchronizer.SynchronizeAsync(ct);
 		var stale = await synchronizer.GetSnapshotAsync(ct);
@@ -64,48 +66,49 @@ public sealed class RepositorySynchronizerTests
 	public async Task Probe_waits_until_running_playbook_releases_repository()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
-		var synchronizer = CreateSynchronizer(controlNode);
+		var gitRepository = new FakeGitRepository();
+		var ansibleRebond = new FakeAnsibleRebond();
+		var synchronizer = CreateSynchronizer(gitRepository, ansibleRebond);
 		await synchronizer.GetSnapshotAsync(ct);
-		controlNode.ExecuteStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		controlNode.FinishExecute = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		ansibleRebond.ExecuteStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		ansibleRebond.FinishExecute = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
 		var run = synchronizer.ExecutePlaybookAsync("playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
-		await controlNode.ExecuteStarted.Task;
-		controlNode.RemoteRevision = "def456";
+		await ansibleRebond.ExecuteStarted.Task;
+		gitRepository.RemoteRevision = "def456";
 		var probe = synchronizer.SynchronizeAsync(ct);
 		await Task.Delay(30, ct);
 
-		Assert.Equal(1, controlNode.SynchronizeCalls);
+		Assert.Equal(1, gitRepository.SynchronizeCalls);
 		Assert.False(probe.IsCompleted);
-		controlNode.FinishExecute.SetResult();
+		ansibleRebond.FinishExecute.SetResult();
 		await Task.WhenAll(run, probe);
-		Assert.Equal(2, controlNode.SynchronizeCalls);
+		Assert.Equal(2, gitRepository.SynchronizeCalls);
 	}
 
 	[Fact]
 	public async Task Run_resets_tracked_changes_even_when_remote_revision_is_unchanged()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
-		var synchronizer = CreateSynchronizer(controlNode);
+		var gitRepository = new FakeGitRepository();
+		var synchronizer = CreateSynchronizer(gitRepository, new FakeAnsibleRebond());
 		await synchronizer.GetSnapshotAsync(ct);
-		controlNode.HasTrackedChanges = true;
+		gitRepository.HasTrackedChanges = true;
 
 		await synchronizer.ExecutePlaybookAsync(
 			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
 
-		Assert.Equal(2, controlNode.SynchronizeCalls);
+		Assert.Equal(2, gitRepository.SynchronizeCalls);
 	}
 
 	[Fact]
 	public async Task Unchanged_probe_publishes_status_without_repository_changed_event()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
+		var gitRepository = new FakeGitRepository();
 		var notifier = new FakeNotifier();
 		var synchronizer = new RepositorySynchronizer(
-			controlNode, notifier, NullLogger<RepositorySynchronizer>.Instance);
+			gitRepository, new FakeAnsibleRebond(), notifier, NullLogger<RepositorySynchronizer>.Instance);
 		await synchronizer.GetSnapshotAsync(ct);
 		var changedEvents = notifier.RepositoryChangedCalls;
 
@@ -119,23 +122,24 @@ public sealed class RepositorySynchronizerTests
 	public async Task Run_reconciles_wrong_origin_or_branch_even_when_revision_is_unchanged()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var controlNode = new FakeControlNode();
-		var synchronizer = CreateSynchronizer(controlNode);
+		var gitRepository = new FakeGitRepository();
+		var synchronizer = CreateSynchronizer(gitRepository, new FakeAnsibleRebond());
 		await synchronizer.GetSnapshotAsync(ct);
-		controlNode.HasExpectedRepositoryConfiguration = false;
+		gitRepository.HasExpectedRepositoryConfiguration = false;
 
 		await synchronizer.ExecutePlaybookAsync(
 			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
 
-		Assert.Equal(2, controlNode.SynchronizeCalls);
+		Assert.Equal(2, gitRepository.SynchronizeCalls);
 	}
 
-	private static RepositorySynchronizer CreateSynchronizer(FakeControlNode controlNode) => new(
-		controlNode,
+	private static RepositorySynchronizer CreateSynchronizer(FakeGitRepository gitRepository, FakeAnsibleRebond ansibleRebond) => new(
+		gitRepository,
+		ansibleRebond,
 		new FakeNotifier(),
 		NullLogger<RepositorySynchronizer>.Instance);
 
-	private sealed class FakeControlNode : IControlNode
+	private sealed class FakeGitRepository : IGitRepository
 	{
 		public int RemoteRevisionCalls { get; private set; }
 		public int SynchronizeCalls { get; private set; }
@@ -152,7 +156,7 @@ public sealed class RepositorySynchronizerTests
 			return RemoteRevision;
 		}
 
-		public Task SynchronizeRepositoryAsync(CancellationToken ct = default)
+		public Task SynchronizeAsync(CancellationToken ct = default)
 		{
 			SynchronizeCalls++;
 			return Task.CompletedTask;
@@ -162,8 +166,14 @@ public sealed class RepositorySynchronizerTests
 		public bool HasTrackedChanges { get; set; }
 		public Task<bool> HasTrackedChangesAsync(CancellationToken ct = default) => Task.FromResult(HasTrackedChanges);
 		public bool HasExpectedRepositoryConfiguration { get; set; } = true;
-		public Task<bool> HasExpectedRepositoryConfigurationAsync(CancellationToken ct = default) =>
+		public Task<bool> HasExpectedConfigurationAsync(CancellationToken ct = default) =>
 			Task.FromResult(HasExpectedRepositoryConfiguration);
+	}
+
+	private sealed class FakeAnsibleRebond : IAnsibleRebond
+	{
+		public TaskCompletionSource? ExecuteStarted { get; set; }
+		public TaskCompletionSource? FinishExecute { get; set; }
 
 		public Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(CancellationToken ct = default) =>
 			Task.FromResult<IReadOnlyList<Playbook>>([new("playbooks/site.yml", "site", "base")]);

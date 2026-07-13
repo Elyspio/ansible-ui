@@ -29,11 +29,13 @@ pnpm test      # vitest (no test files exist yet)
 
 Ports-and-adapters layering, one DI module (`Add*` extension) per project, all wired in [AnsibleUi.Web/Program.cs](back/AnsibleUi.Web/Program.cs):
 
-- **Abstractions** — models (`Run`, `Playbook`, `Inventory`), interfaces (`IControlNode`, `IRunRepository`, `IRealtimeNotifier`), `HttpException`. Depends on nothing.
+- **Abstractions** — models (`Run`, `Playbook`, `Inventory`), interfaces (`IGitRepository`, `IAnsibleRebond`, `IRemoteCommandExecutor`, `IRunRepository`, `IRealtimeNotifier`), `HttpException`. Depends on nothing.
 - **Core** — domain logic. `RunLauncher` is the heart (see below); `RecapParser` extracts the per-host `PLAY RECAP`.
 - **Db** — MongoDB `RunRepository`.
 - **Sockets** — SignalR `RunHub` (`/hubs/runs`) + `RealtimeNotifier` implementing `IRealtimeNotifier`.
-- **Adapters** — `SshControlNode` (Renci.SshNet) is the **only** code touching SSH / the control node; implements `IControlNode`.
+- **Adapters.Ssh** — `SshRemoteCommandExecutor` (Renci.SshNet) is the **only** code touching SSH; implements `IRemoteCommandExecutor`.
+- **Adapters.Git** — `GitRepository` builds Git scripts and implements `IGitRepository`.
+- **Adapters.Ansible** — `AnsibleRebond` builds Ansible scripts and implements `IAnsibleRebond`.
 - **Web** — composition root: controllers, auth, filters (`HttpExceptionFilter` maps `HttpException` to status codes). Serves the built front from `wwwroot` with SPA fallback (single container in prod).
 - **AppHost / ServiceDefaults** — Aspire orchestration and shared telemetry/health.
 
@@ -43,7 +45,7 @@ Ports-and-adapters layering, one DI module (`Add*` extension) per project, all w
 
 ### Streaming path
 
-`SshControlNode.ExecutePlaybookAsync` emits stdout in chunks via a callback → `RunLauncher` appends to the repo and calls `IRealtimeNotifier` → SignalR pushes to the browser. Cancel works by capturing ansible's remote PID (a `__ANSIBLE_UI_PID__=$$` marker line, swallowed from output) and sending SIGINT then SIGKILL over a second SSH connection. On `/hubs` routes the browser passes the bearer token as an `access_token` query string (JwtBearer is configured to read it there).
+`AnsibleRebond.ExecutePlaybookAsync` streams through `IRemoteCommandExecutor` → `RunLauncher` appends to the repo and calls `IRealtimeNotifier` → SignalR pushes to browser. SSH transport captures remote PID (a `__ANSIBLE_UI_PID__=$$` marker line, swallowed from output) and sends SIGINT then SIGKILL over a second SSH connection. On `/hubs` routes browser passes bearer token as an `access_token` query string (JwtBearer is configured to read it there).
 
 ### Security invariants (don't regress these)
 
@@ -52,7 +54,7 @@ Ports-and-adapters layering, one DI module (`Add*` extension) per project, all w
 
 ## Configuration
 
-Nothing environment-specific is hardcoded. `Program.cs` layers config: `appsettings.json` (empty defaults) → `appsettings.docker.json` (prod, mounted secret) → `appsettings.Local.json` (dev, gitignored). `ControlNodeOptions` is validated at startup (`ValidateOnStart`) — missing `Host`/`User`/`PrivateKeyPath`/`RepoPath` fails the app at boot rather than per-request.
+Nothing environment-specific is hardcoded. `Program.cs` layers config: `appsettings.json` (empty defaults) → `appsettings.docker.json` (prod, mounted secret) → `appsettings.Local.json` (dev, gitignored). `SshConnectionOptions`, `GitRepositoryOptions`, and `AnsibleOptions` validate at startup; Ansible working directory must remain within configured Git repository path.
 
 **Auth** is mandatory generic OIDC bearer validation (any provider). `Auth.Authority` and `Auth.Audience` are required at API startup. Locally, Aspire runs Keycloak and injects these into the API (`Auth__*`) and the front (`VITE_OIDC_*`, which override `front/public/conf.js`). Kubernetes must inject them in production. The Keycloak realm/client/dev-user are seeded from `back/AnsibleUi.AppHost/realms/` on first run (persisted in a data volume afterward — delete the volume to re-seed). `Aspire.Hosting.Keycloak` is preview-only at 13.x.
 

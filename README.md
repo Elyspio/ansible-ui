@@ -25,25 +25,31 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
 
 ```json
 {
-  "ControlNode": {
+  "SshConnection": {
     "Host": "ansible.example.lan",
     "Port": 22,
     "User": "ansible",
-		"PrivateKeyPath": "/secrets/id_ed25519",
-		"RepoPath": "/home/ansible/infrastructure",
-		"RepositoryUrl": "ssh://git@forge.example.lan/ops/ansible.git",
-		"RepositoryBranch": "main",
-		"AnsibleDirectory": "ansible"
-	},
-	"RepositorySynchronization": {
-		"ProbeInterval": "00:00:01"
-	},
+    "PrivateKeyPath": "/secrets/id_ed25519"
+  },
+  "GitRepository": {
+    "Path": "/home/ansible/infrastructure",
+    "Url": "ssh://git@forge.example.lan/ops/ansible.git",
+    "Branch": "main"
+  },
+  "Ansible": {
+    "WorkingDirectory": "/home/ansible/infrastructure/ansible"
+  },
+  "RepositorySynchronization": {
+    "ProbeInterval": "00:00:01"
+  },
   "Auth": {
     "Authority": "https://sso.example.lan/realms/main",
     "Audience": "ansible-ui"
   }
 }
 ```
+
+`Ansible:WorkingDirectory` must be an absolute POSIX path inside `GitRepository:Path`.
 
 OIDC is mandatory. Kubernetes must inject backend `Auth__Authority` and `Auth__Audience`,
 and deploy a frontend `conf.js` with `oauth.authority` and `oauth.client_id`.

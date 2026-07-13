@@ -5,7 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace AnsibleUi.Core.Services;
 
 public sealed class RepositorySynchronizer(
-	IControlNode controlNode,
+	IGitRepository gitRepository,
+	IAnsibleRebond ansibleRebond,
 	IRealtimeNotifier notifier,
 	ILogger<RepositorySynchronizer> logger) : IRepositorySynchronizer
 {
@@ -53,7 +54,7 @@ public sealed class RepositorySynchronizer(
 		await _repositoryLock.WaitAsync(ct);
 		try
 		{
-			return await controlNode.GetHostVarsAsync(host, ct);
+			return await ansibleRebond.GetHostVarsAsync(host, ct);
 		}
 		finally
 		{
@@ -94,7 +95,7 @@ public sealed class RepositorySynchronizer(
 				await NotifyStatusAsync();
 				throw;
 			}
-			return await controlNode.ExecutePlaybookAsync(playbook, options, onOutput, ct);
+			return await ansibleRebond.ExecutePlaybookAsync(playbook, options, onOutput, ct);
 		}
 		finally
 		{
@@ -110,7 +111,7 @@ public sealed class RepositorySynchronizer(
 		await NotifyStatusAsync();
 		try
 		{
-			var remoteRevision = await controlNode.GetRemoteRevisionAsync();
+			var remoteRevision = await gitRepository.GetRemoteRevisionAsync();
 			UpdateStatus(status => status with
 			{
 				RemoteRevision = remoteRevision,
@@ -150,21 +151,21 @@ public sealed class RepositorySynchronizer(
 
 	private async Task RefreshSnapshotUnderLockAsync(bool checkRemote, CancellationToken ct)
 	{
-		var remoteRevision = checkRemote ? await controlNode.GetRemoteRevisionAsync(ct) : Status.RemoteRevision!;
+		var remoteRevision = checkRemote ? await gitRepository.GetRemoteRevisionAsync(ct) : Status.RemoteRevision!;
 		var mustReconcile = checkRemote &&
-			(await controlNode.HasTrackedChangesAsync(ct) ||
-			 !await controlNode.HasExpectedRepositoryConfigurationAsync(ct));
+			(await gitRepository.HasTrackedChangesAsync(ct) ||
+			 !await gitRepository.HasExpectedConfigurationAsync(ct));
 		var synchronized = _snapshot?.Revision != remoteRevision || mustReconcile;
 		if (synchronized)
-			await controlNode.SynchronizeRepositoryAsync(ct);
+			await gitRepository.SynchronizeAsync(ct);
 
-		var localRevision = await controlNode.GetLocalRevisionAsync(ct);
+		var localRevision = await gitRepository.GetLocalRevisionAsync(ct);
 		if (!string.Equals(localRevision, remoteRevision, StringComparison.Ordinal))
 			throw new InvalidOperationException(
 				$"Local revision '{localRevision}' does not match remote revision '{remoteRevision}'");
 
-		var playbooks = await controlNode.ListPlaybooksAsync(ct);
-		var inventory = await controlNode.GetInventoryAsync(ct);
+		var playbooks = await ansibleRebond.ListPlaybooksAsync(ct);
+		var inventory = await ansibleRebond.GetInventoryAsync(ct);
 		var changed = _snapshot?.Revision != localRevision;
 		_snapshot = new RepositorySnapshot(localRevision, playbooks, inventory);
 		UpdateStatus(status => status with
