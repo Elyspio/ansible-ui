@@ -62,6 +62,8 @@ public sealed partial class AnsibleRebond(
 		if (!string.IsNullOrWhiteSpace(options.Limit)) arguments.Append($" --limit {PosixShell.Quote(options.Limit)}");
 		if (options.Check) arguments.Append(" --check");
 		if (options.Diff) arguments.Append(" --diff");
+		if (_options.AcceptNewSshHostKeys)
+			arguments.Append(" --ssh-common-args '-o StrictHostKeyChecking=accept-new'");
 		var result = await commands.ExecuteStreamingAsync(
 			$"cd {PosixShell.Quote(_options.WorkingDirectory)} && exec env ANSIBLE_FORCE_COLOR=True {arguments} 2>&1", onOutput, ct);
 		return result.ExitCode;

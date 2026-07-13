@@ -24,6 +24,9 @@ const oidcConfig = {
 
 function OidcBridge({ children }: { children: ReactNode }) {
 	const oidc = useOidc();
+	// Populate the shared token before children mount: their effects can start the
+	// SignalR connection on this same render.
+	setAccessToken(oidc.user?.access_token ?? null);
 
 	useEffect(() => {
 		setAccessToken(oidc.user?.access_token ?? null);

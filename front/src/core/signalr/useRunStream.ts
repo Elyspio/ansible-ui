@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { HubConnectionState } from "@microsoft/signalr";
-import { ensureStarted, getRunsHub } from "./connection";
+import { getRunsHub, unwatchRun, watchRun } from "./connection";
 
 /**
  * Live output of one run: joins the hub group "run-{id}" and forwards each raw chunk.
@@ -17,20 +16,13 @@ export function useRunStream(runId: string | undefined, onChunk: (chunk: string)
 		};
 
 		hub.on("runOutput", handler);
-		let disposed = false;
-		void ensureStarted()
-			.then(() => {
-				if (!disposed) return hub.invoke("WatchRun", runId);
-			})
-			.catch(() => {
-				/* automatic reconnect takes over */
-			});
+		void watchRun(runId).catch(() => {
+			/* automatic reconnect takes over */
+		});
 
 		return () => {
-			disposed = true;
 			hub.off("runOutput", handler);
-			if (hub.state === HubConnectionState.Connected)
-				void hub.invoke("UnwatchRun", runId).catch(() => {});
+			unwatchRun(runId);
 		};
 	}, [runId, onChunk]);
 }

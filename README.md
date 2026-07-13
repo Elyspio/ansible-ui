@@ -37,7 +37,8 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
     "Branch": "main"
   },
   "Ansible": {
-    "WorkingDirectory": "/home/ansible/infrastructure/ansible"
+    "WorkingDirectory": "/home/ansible/infrastructure/ansible",
+    "AcceptNewSshHostKeys": true
   },
   "RepositorySynchronization": {
     "ProbeInterval": "00:00:01"
@@ -50,6 +51,8 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
 ```
 
 `Ansible:WorkingDirectory` must be an absolute POSIX path inside `GitRepository:Path`.
+`Ansible:AcceptNewSshHostKeys` is disabled by default. When enabled, Ansible accepts and stores
+unknown OpenSSH host keys, but still rejects a host whose known key changed.
 
 OIDC is mandatory. Kubernetes must inject backend `Auth__Authority` and `Auth__Audience`,
 and deploy a frontend `conf.js` with `oauth.authority` and `oauth.client_id`.

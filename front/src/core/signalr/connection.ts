@@ -10,6 +10,7 @@ import { getAccessToken } from "@/core/api/client";
 // Single shared connection to the runs hub; hooks register handlers and hub groups on it.
 let connection: HubConnection | null = null;
 let starting: Promise<void> | null = null;
+const watchedRuns = new Set<string>();
 
 export function getRunsHub(): HubConnection {
 	if (!connection) {
@@ -20,6 +21,11 @@ export function getRunsHub(): HubConnection {
 			.withAutomaticReconnect()
 			.configureLogging(LogLevel.Warning)
 			.build();
+		connection.onreconnected(async () => {
+			await Promise.allSettled(
+				[...watchedRuns].map((runId) => connection!.invoke("WatchRun", runId)),
+			);
+		});
 	}
 	return connection;
 }
@@ -34,4 +40,19 @@ export async function ensureStarted(): Promise<HubConnection> {
 	}
 	if (starting) await starting;
 	return hub;
+}
+
+/** Watches a run now and restores that group membership after reconnects. */
+export async function watchRun(runId: string): Promise<void> {
+	watchedRuns.add(runId);
+	await ensureStarted();
+	await getRunsHub().invoke("WatchRun", runId);
+}
+
+/** Stops local tracking even if hub is disconnected. */
+export function unwatchRun(runId: string): void {
+	watchedRuns.delete(runId);
+	const hub = getRunsHub();
+	if (hub.state === HubConnectionState.Connected)
+		void hub.invoke("UnwatchRun", runId).catch(() => {});
 }

@@ -48,8 +48,24 @@ public sealed class AnsibleRebondTests
 		Assert.Contains("ansible-playbook 'playbooks/site.yml'", commands.LastScript);
 	}
 
-	private static IAnsibleRebond Create(FakeCommands commands) => new AnsibleRebond(commands,
-		Options.Create(new AnsibleOptions { WorkingDirectory = "/srv/ansible" }));
+	[Fact]
+	public async Task Run_accepts_only_new_ssh_host_keys_when_enabled()
+	{
+		var commands = new FakeCommands("");
+		IAnsibleRebond rebond = Create(commands, acceptNewSshHostKeys: true);
+
+		await rebond.ExecutePlaybookAsync(
+			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+
+		Assert.Contains("--ssh-common-args '-o StrictHostKeyChecking=accept-new'", commands.LastScript);
+	}
+
+	private static IAnsibleRebond Create(FakeCommands commands, bool acceptNewSshHostKeys = false) => new AnsibleRebond(commands,
+		Options.Create(new AnsibleOptions
+		{
+			WorkingDirectory = "/srv/ansible",
+			AcceptNewSshHostKeys = acceptNewSshHostKeys,
+		}));
 
 	private sealed class FakeCommands(string output) : IRemoteCommandExecutor
 	{
