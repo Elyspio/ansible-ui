@@ -1,8 +1,13 @@
 // Aspire AppHost — orchestrates MongoDB + Keycloak + the .NET API + the Vite front (dev).
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Services.AddLogging(x => x.AddSimpleConsole(l => l.SingleLine = true));
+
 var isE2E = string.Equals(builder.Configuration["E2E"], "true", StringComparison.OrdinalIgnoreCase);
 
 var mongo = builder.AddMongoDB("mongo");
@@ -13,7 +18,7 @@ var mongodb = mongo.AddDatabase("ansible-ui");
 // Port pinned so the issuer URL is stable and identical for both the browser and the API.
 var keycloak = builder.AddKeycloak("keycloak", 8080);
 if (!isE2E) keycloak.WithDataVolume();
-keycloak.WithRealmImport("./realms");
+keycloak.WithRealmImport("./Realms");
 
 // Same host-mapped URL the browser and the API both use, so token issuer/audience line up.
 var authority = ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/ansible-ui");

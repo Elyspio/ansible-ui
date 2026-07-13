@@ -12,6 +12,8 @@ using AnsibleUi.Web.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddLogging(x => x.AddSimpleConsole(l => l.SingleLine = true));
+
 // Environment-specific config: mounted secret in production, gitignored local file in dev.
 builder.Configuration.AddJsonFile("appsettings.docker.json", true, true);
 builder.Configuration.AddJsonFile("appsettings.Local.json", true, true);
