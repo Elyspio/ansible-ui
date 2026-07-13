@@ -22,7 +22,7 @@ public sealed class RepositorySynchronizerTests
 		Assert.Equal("abc123", status.Revision);
 		Assert.Equal(status.Revision, snapshot.Revision);
 		Assert.Single(snapshot.Playbooks);
-		Assert.Equal(["host-1"], snapshot.Inventory.Hosts);
+		Assert.Equal(["host-1"], snapshot.Inventory.Hosts.Select(host => host.Name));
 	}
 
 	[Fact]
@@ -179,7 +179,10 @@ public sealed class RepositorySynchronizerTests
 			Task.FromResult<IReadOnlyList<Playbook>>([new("playbooks/site.yml", "site", "base")]);
 
 		public Task<Inventory> GetInventoryAsync(CancellationToken ct = default) =>
-			Task.FromResult(new Inventory([], ["host-1"]));
+			Task.FromResult(new Inventory([], [new InventoryHost("host-1", null, null, null, [], "unknown", null, null, null)]));
+
+		public Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default) =>
+			Task.FromResult<IReadOnlyList<InventoryHostFacts>>([]);
 
 		public Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default) => Task.FromResult<string?>(null);
 

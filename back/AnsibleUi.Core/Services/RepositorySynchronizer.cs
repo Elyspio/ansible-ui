@@ -13,7 +13,11 @@ public sealed class RepositorySynchronizer(
 	private readonly Lock _syncTaskLock = new();
 	private readonly Lock _statusLock = new();
 	private readonly SemaphoreSlim _repositoryLock = new(1, 1);
+	private readonly SemaphoreSlim _inventoryFactsLock = new(1, 1);
 	private RepositorySnapshot? _snapshot;
+	private Inventory? _inventoryWithFacts;
+	private DateTimeOffset? _inventoryFactsExpiresAt;
+	private string? _inventoryFactsRevision;
 	private Task<RepositoryStatus>? _syncTask;
 	private RepositoryStatus _status = new(null, null, null, null, false, false, false, null);
 
@@ -33,6 +37,64 @@ public sealed class RepositorySynchronizer(
 		await SynchronizeAsync(ct);
 		return _snapshot ?? throw new InvalidOperationException(
 			$"The Ansible repository is unavailable: {Status.Error}");
+	}
+
+	public async Task<Inventory> GetInventoryAsync(CancellationToken ct = default)
+	{
+		var snapshot = await GetSnapshotAsync(ct);
+		if (HasFreshInventoryFacts(snapshot.Revision)) return _inventoryWithFacts!;
+
+		await _inventoryFactsLock.WaitAsync(ct);
+		try
+		{
+			if (HasFreshInventoryFacts(snapshot.Revision)) return _inventoryWithFacts!;
+
+			await _repositoryLock.WaitAsync(ct);
+			try
+			{
+				var facts = await ansibleRebond.GetInventoryHostFactsAsync(ct);
+				var checkedAt = DateTimeOffset.UtcNow;
+				var byHost = facts.ToDictionary(fact => fact.Name, StringComparer.Ordinal);
+				var hosts = snapshot.Inventory.Hosts.Select(host =>
+				{
+					var groups = snapshot.Inventory.Groups
+						.Where(group => group.Hosts.Contains(host.Name, StringComparer.Ordinal))
+						.Select(group => group.Name)
+						.OrderBy(name => name, StringComparer.Ordinal)
+						.ToList();
+					if (!byHost.TryGetValue(host.Name, out var fact))
+						return host with
+						{
+							Groups = groups,
+							Error = "Fact probe returned no result for this host.",
+							LastChecked = checkedAt,
+						};
+					return host with
+					{
+						Groups = groups,
+						Status = fact.Status,
+						Error = fact.Error,
+						Ip = fact.Ip,
+						Os = fact.Os,
+						OsFamily = fact.OsFamily,
+						Uptime = fact.Uptime,
+						LastChecked = checkedAt,
+					};
+				}).ToList();
+				_inventoryWithFacts = new Inventory(snapshot.Inventory.Groups, hosts);
+				_inventoryFactsRevision = snapshot.Revision;
+				_inventoryFactsExpiresAt = checkedAt.AddSeconds(60);
+				return _inventoryWithFacts;
+			}
+			finally
+			{
+				_repositoryLock.Release();
+			}
+		}
+		finally
+		{
+			_inventoryFactsLock.Release();
+		}
 	}
 
 	public async Task<RepositoryStatus> SynchronizeAsync(CancellationToken ct = default)
@@ -168,6 +230,9 @@ public sealed class RepositorySynchronizer(
 		var inventory = await ansibleRebond.GetInventoryAsync(ct);
 		var changed = _snapshot?.Revision != localRevision;
 		_snapshot = new RepositorySnapshot(localRevision, playbooks, inventory);
+		_inventoryWithFacts = null;
+		_inventoryFactsExpiresAt = null;
+		_inventoryFactsRevision = null;
 		UpdateStatus(status => status with
 		{
 			Revision = localRevision,
@@ -195,4 +260,9 @@ public sealed class RepositorySynchronizer(
 	{
 		lock (_statusLock) _status = update(_status);
 	}
+
+	private bool HasFreshInventoryFacts(string revision) =>
+		_inventoryWithFacts is not null &&
+		_inventoryFactsRevision == revision &&
+		_inventoryFactsExpiresAt > DateTimeOffset.UtcNow;
 }

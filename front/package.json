@@ -14,8 +14,8 @@
 	"dependencies": {
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.0",
-		"@fontsource-variable/geist": "^5.2.5",
-		"@fontsource-variable/geist-mono": "^5.2.5",
+		"@fontsource-variable/jetbrains-mono": "^5.2.8",
+		"@fontsource-variable/space-grotesk": "^5.2.10",
 		"@microsoft/signalr": "^9.0.6",
 		"@mui/icons-material": "^9.1.0",
 		"@mui/material": "^9.1.0",

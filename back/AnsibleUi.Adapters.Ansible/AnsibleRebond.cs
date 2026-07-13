@@ -45,7 +45,28 @@ public sealed partial class AnsibleRebond(
 		}
 		if (json.RootElement.TryGetProperty("ungrouped", out var ungrouped))
 			foreach (var host in ReadStringArray(ungrouped, "hosts")) hosts.Add(host);
-		return new Inventory(groups, [.. hosts]);
+		return new Inventory(groups, hosts.Select(host => new InventoryHost(
+			host,
+			null,
+			null,
+			null,
+			[],
+			"unknown",
+			null,
+			null,
+			null)).ToList());
+	}
+
+	public async Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default)
+	{
+		const string factFilter = "ansible_os_family,ansible_distribution,ansible_default_ipv4,ansible_uptime_seconds";
+		var sshArgument = _options.AcceptNewSshHostKeys
+			? " --ssh-common-args '-o StrictHostKeyChecking=accept-new'"
+			: "";
+		var result = await commands.ExecuteAsync(
+			$"cd {PosixShell.Quote(_options.WorkingDirectory)} && ANSIBLE_NOCOLOR=1 ansible all -m setup -a {PosixShell.Quote($"filter={factFilter}")}{sshArgument} -o", ct);
+
+		return ParseHostFacts(result.StandardOutput);
 	}
 
 	public async Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default)
@@ -78,6 +99,85 @@ public sealed partial class AnsibleRebond(
 	{
 		if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array) return [];
 		return [.. array.EnumerateArray().Select(item => item.GetString()!).Where(value => value is not null)];
+	}
+
+	private static IReadOnlyList<InventoryHostFacts> ParseHostFacts(string output)
+	{
+		var facts = new List<InventoryHostFacts>();
+		foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+		{
+			var separator = line.IndexOf(" | ", StringComparison.Ordinal);
+			var payloadStart = line.IndexOf(" => ", StringComparison.Ordinal);
+			if (separator <= 0 || payloadStart <= separator) continue;
+
+			var host = line[..separator].Trim();
+			if (!SafeHostName().IsMatch(host)) continue;
+			var result = line[(separator + 3)..payloadStart];
+			var payload = line[(payloadStart + 4)..];
+			if (result.StartsWith("UNREACHABLE", StringComparison.Ordinal))
+			{
+				facts.Add(new InventoryHostFacts(host, "unreachable", null, null, null, ReadProbeError(payload), null));
+				continue;
+			}
+			if (!result.StartsWith("SUCCESS", StringComparison.Ordinal))
+			{
+				facts.Add(new InventoryHostFacts(host, "unknown", null, null, null, ReadProbeError(payload), null));
+				continue;
+			}
+
+			try
+			{
+				using var json = JsonDocument.Parse(payload);
+				var ansibleFacts = json.RootElement.TryGetProperty("ansible_facts", out var value) ? value : default;
+				if (ansibleFacts.ValueKind != JsonValueKind.Object)
+				{
+					facts.Add(new InventoryHostFacts(host, "unknown", null, null, null, "Fact probe returned no facts.", null));
+					continue;
+				}
+				facts.Add(new InventoryHostFacts(
+					host,
+					"reachable",
+					ReadNestedString(ansibleFacts, "ansible_default_ipv4", "address"),
+					ReadString(ansibleFacts, "ansible_distribution"),
+					ReadString(ansibleFacts, "ansible_os_family"),
+					null,
+					ReadLong(ansibleFacts, "ansible_uptime_seconds") is { } seconds ? TimeSpan.FromSeconds(seconds) : null));
+			}
+			catch (JsonException)
+			{
+				facts.Add(new InventoryHostFacts(host, "unknown", null, null, null, "Fact probe returned malformed output.", null));
+			}
+		}
+		return facts;
+	}
+
+	private static string? ReadString(JsonElement element, string property) =>
+		element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+			? value.GetString()
+			: null;
+
+	private static string? ReadNestedString(JsonElement element, string property, string nestedProperty) =>
+		element.TryGetProperty(property, out var nested) && nested.ValueKind == JsonValueKind.Object
+			? ReadString(nested, nestedProperty)
+			: null;
+
+	private static long? ReadLong(JsonElement element, string property) =>
+		element.TryGetProperty(property, out var value) && value.TryGetInt64(out var number) ? number : null;
+
+	private static string ReadProbeError(string payload)
+	{
+		try
+		{
+			using var json = JsonDocument.Parse(payload);
+			var message = ReadString(json.RootElement, "msg");
+			if (string.IsNullOrWhiteSpace(message)) return "Fact probe failed without an error message.";
+			message = message.Trim();
+			return message[..Math.Min(message.Length, 500)];
+		}
+		catch (JsonException)
+		{
+			return "Fact probe returned malformed output.";
+		}
 	}
 
 	[GeneratedRegex("^[A-Za-z0-9._-]+$")]
