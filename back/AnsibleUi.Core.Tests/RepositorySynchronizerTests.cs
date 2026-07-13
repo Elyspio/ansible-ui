@@ -9,6 +9,23 @@ namespace AnsibleUi.Core.Tests;
 public sealed class RepositorySynchronizerTests
 {
 	[Fact]
+	public async Task Repository_synchronizer_exposes_published_snapshot_through_its_interface()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var controlNode = new FakeControlNode();
+		IRepositorySynchronizer synchronizer = CreateSynchronizer(controlNode);
+
+		var status = await synchronizer.SynchronizeAsync(ct);
+		var snapshot = await synchronizer.GetSnapshotAsync(ct);
+
+		Assert.False(status.IsDegraded);
+		Assert.Equal("abc123", status.Revision);
+		Assert.Equal(status.Revision, snapshot.Revision);
+		Assert.Single(snapshot.Playbooks);
+		Assert.Equal(["host-1"], snapshot.Inventory.Hosts);
+	}
+
+	[Fact]
 	public async Task Initial_snapshot_is_shared_by_parallel_callers()
 	{
 		var ct = TestContext.Current.CancellationToken;

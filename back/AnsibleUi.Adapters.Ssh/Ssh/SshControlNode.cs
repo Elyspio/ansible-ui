@@ -34,6 +34,7 @@ public sealed partial class SshControlNode(IOptions<ControlNodeOptions> options,
 		var branch = Quote(_options.RepositoryBranch);
 		var parent = Quote(PosixParent(_options.RepoPath));
 		var script =
+			$"mkdir -p {parent} && " +
 			$"if [ -d {repo}/.git ]; then " +
 			$"cd {repo} && git remote set-url origin {url} && " +
 			$"git fetch --prune origin {branch} && " +
