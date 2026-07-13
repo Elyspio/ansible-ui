@@ -15,7 +15,6 @@ Ansible with its configured Révision distante and freezes it for the duration o
 
 - `back/` — .NET Aspire application (API, MongoDB persistence, SignalR streaming, SSH executor).
 - `front/` — React SPA (Vite+, MUI). Served by the API in production (single container).
-- `docs/adr/` — architecture decision records.
 
 ## Configuration
 

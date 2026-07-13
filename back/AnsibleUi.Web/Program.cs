@@ -9,6 +9,7 @@ using AnsibleUi.Sockets.Hubs;
 using AnsibleUi.Sockets.Injections;
 using AnsibleUi.Web.Auth;
 using AnsibleUi.Web.Filters;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +32,10 @@ builder.Services.AddOptions<AnsibleOptions>()
 	.Validate(options => PosixShell.IsContainedIn(options.WorkingDirectory, repositoryPath), "Ansible:WorkingDirectory must be inside GitRepository:Path");
 builder.Services.AddAnsibleUiAuth(builder.Configuration);
 
-builder.Services.AddControllers(options => options.Filters.Add<HttpExceptionFilter>());
+// Serialize enums (e.g. RunStatus) as their names, not ints, so REST payloads match the
+// string values SignalR sends and the frontend compares against (run.status === "Running").
+builder.Services.AddControllers(options => options.Filters.Add<HttpExceptionFilter>())
+	.AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

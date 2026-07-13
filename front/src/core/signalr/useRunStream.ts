@@ -12,7 +12,7 @@ export function useRunStream(runId: string | undefined, onChunk: (chunk: string)
 
 		const hub = getRunsHub();
 		const handler = (id: string, chunk: string) => {
-			if (id === runId) onChunk(chunk);
+			if (String(id).toLowerCase() === runId.toLowerCase()) onChunk(chunk);
 		};
 
 		hub.on("runOutput", handler);
