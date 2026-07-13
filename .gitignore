@@ -13,6 +13,7 @@ appsettings.Local.json
 # Deployment SSH keys (never commit)
 /deploy/keys/ansible-ui-elylan_ed25519
 /deploy/keys/ansible-ui-elylan_ed25519.pub
+/deploy/kubernetes/ansible-ui/values.secrets.yaml
 
 # Test artifacts
 test-results/

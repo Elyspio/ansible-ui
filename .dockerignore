@@ -1,0 +1,9 @@
+.git
+.idea
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/values.secrets.yaml
+**/keys
+**/appsettings.Local.json

@@ -1,0 +1,25 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/build/dockerfile
+    depends_on:
+      - mongo
+    environment:
+      ConnectionStrings__MongoDB: "mongodb://mongo:27017/ansible-ui"
+      Auth__Authority: "https://auth.elyspio.fr/realms/internal"
+      Auth__Audience: "ansible-ui"
+      Cors__AllowedOrigins__0: "http://localhost:4000"
+    ports:
+      - "4000:4000"
+
+volumes:
+  mongo-data:
