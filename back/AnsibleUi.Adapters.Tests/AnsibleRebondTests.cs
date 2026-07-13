@@ -19,9 +19,37 @@ public sealed class AnsibleRebondTests
 
 		var inventory = await rebond.GetInventoryAsync(TestContext.Current.CancellationToken);
 
-		Assert.Equal(["web-1"], inventory.Hosts);
+		Assert.Equal(["web-1"], inventory.Hosts.Select(host => host.Name));
 		Assert.Single(inventory.Groups);
 		Assert.DoesNotContain(inventory.Groups, group => group.Name == "_meta");
+	}
+
+	[Fact]
+	public async Task Inventory_host_facts_expose_allowlisted_values_only()
+	{
+		var commands = new FakeCommands("""
+			web-1 | SUCCESS => {"ansible_facts":{"ansible_os_family":"Debian","ansible_distribution":"Debian","ansible_default_ipv4":{"address":"10.0.0.1"},"ansible_uptime_seconds":3600,"secret":"never"}}
+			web-2 | UNREACHABLE! => {"changed":false,"unreachable":true}
+			web-3 | FAILED! => {"failed":true,"msg":"Python interpreter missing"}
+			""");
+		IAnsibleRebond rebond = Create(commands);
+
+		var facts = await rebond.GetInventoryHostFactsAsync(TestContext.Current.CancellationToken);
+
+		Assert.Collection(facts,
+			fact =>
+			{
+				Assert.Equal("reachable", fact.Status);
+				Assert.Equal("10.0.0.1", fact.Ip);
+				Assert.Equal(TimeSpan.FromHours(1), fact.Uptime);
+			},
+			fact => Assert.Equal("unreachable", fact.Status),
+			fact =>
+			{
+				Assert.Equal("unknown", fact.Status);
+				Assert.Equal("Python interpreter missing", fact.Error);
+			});
+		Assert.Contains("filter=ansible_os_family,ansible_distribution,ansible_default_ipv4,ansible_uptime_seconds", commands.LastScript);
 	}
 
 	[Fact]

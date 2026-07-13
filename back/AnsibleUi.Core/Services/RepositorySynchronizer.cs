@@ -13,7 +13,9 @@ public sealed class RepositorySynchronizer(
 	private readonly Lock _syncTaskLock = new();
 	private readonly Lock _statusLock = new();
 	private readonly SemaphoreSlim _repositoryLock = new(1, 1);
+	private readonly SemaphoreSlim _inventoryFactsLock = new(1, 1);
 	private RepositorySnapshot? _snapshot;
+	private FactsCache? _factsCache;
 	private Task<RepositoryStatus>? _syncTask;
 	private RepositoryStatus _status = new(null, null, null, null, false, false, false, null);
 
@@ -33,6 +35,71 @@ public sealed class RepositorySynchronizer(
 		await SynchronizeAsync(ct);
 		return _snapshot ?? throw new InvalidOperationException(
 			$"The Ansible repository is unavailable: {Status.Error}");
+	}
+
+	public async Task<Inventory> GetInventoryAsync(CancellationToken ct = default)
+	{
+		var snapshot = await GetSnapshotAsync(ct);
+		if (FreshFacts(snapshot.Revision) is { } fresh) return fresh;
+
+		// Never queue behind another probe or a running playbook — the inventory must stay
+		// responsive while a run holds the repository. Degrade to the last facts for this
+		// revision (whatever their age) or to the structure-only inventory instead of blocking.
+		if (!await _inventoryFactsLock.WaitAsync(TimeSpan.Zero, ct))
+			return StaleFactsOrStructure(snapshot);
+		try
+		{
+			if (FreshFacts(snapshot.Revision) is { } refreshed) return refreshed;
+
+			if (!await _repositoryLock.WaitAsync(TimeSpan.Zero, ct))
+				return StaleFactsOrStructure(snapshot);
+			try
+			{
+				var facts = await ansibleRebond.GetInventoryHostFactsAsync(ct);
+				var checkedAt = DateTimeOffset.UtcNow;
+				var byHost = facts.ToDictionary(fact => fact.Name, StringComparer.Ordinal);
+				var hosts = snapshot.Inventory.Hosts.Select(host =>
+				{
+					var groups = snapshot.Inventory.Groups
+						.Where(group => group.Hosts.Contains(host.Name, StringComparer.Ordinal))
+						.Select(group => group.Name)
+						.OrderBy(name => name, StringComparer.Ordinal)
+						.ToList();
+					if (!byHost.TryGetValue(host.Name, out var fact))
+						return host with
+						{
+							Groups = groups,
+							Error = "Fact probe returned no result for this host.",
+							LastChecked = checkedAt,
+						};
+					return host with
+					{
+						Groups = groups,
+						Status = fact.Status,
+						Error = fact.Error,
+						Ip = fact.Ip,
+						Os = fact.Os,
+						OsFamily = fact.OsFamily,
+						Uptime = fact.Uptime,
+						LastChecked = checkedAt,
+					};
+				}).ToList();
+				var cache = new FactsCache(
+					new Inventory(snapshot.Inventory.Groups, hosts),
+					snapshot.Revision,
+					checkedAt.AddSeconds(FactsTtlSeconds));
+				_factsCache = cache;
+				return cache.Inventory;
+			}
+			finally
+			{
+				_repositoryLock.Release();
+			}
+		}
+		finally
+		{
+			_inventoryFactsLock.Release();
+		}
 	}
 
 	public async Task<RepositoryStatus> SynchronizeAsync(CancellationToken ct = default)
@@ -168,6 +235,7 @@ public sealed class RepositorySynchronizer(
 		var inventory = await ansibleRebond.GetInventoryAsync(ct);
 		var changed = _snapshot?.Revision != localRevision;
 		_snapshot = new RepositorySnapshot(localRevision, playbooks, inventory);
+		_factsCache = null;
 		UpdateStatus(status => status with
 		{
 			Revision = localRevision,
@@ -195,4 +263,24 @@ public sealed class RepositorySynchronizer(
 	{
 		lock (_statusLock) _status = update(_status);
 	}
+
+	private Inventory? FreshFacts(string revision)
+	{
+		// Single reference read: a concurrent writer can never expose a torn revision/expiry.
+		var cache = _factsCache;
+		return cache is not null && cache.Revision == revision && cache.ExpiresAt > DateTimeOffset.UtcNow
+			? cache.Inventory
+			: null;
+	}
+
+	private Inventory StaleFactsOrStructure(RepositorySnapshot snapshot)
+	{
+		var cache = _factsCache;
+		return cache is not null && cache.Revision == snapshot.Revision ? cache.Inventory : snapshot.Inventory;
+	}
+
+	private const int FactsTtlSeconds = 60;
+
+	/// <summary>Facts-enriched inventory for one repository revision, valid until <paramref name="ExpiresAt"/>.</summary>
+	private sealed record FactsCache(Inventory Inventory, string Revision, DateTimeOffset ExpiresAt);
 }

@@ -2,9 +2,8 @@ import { alpha, createTheme, type Theme } from "@mui/material/styles";
 
 export type Mode = "light" | "dark";
 
-const fontSans =
-	'"Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const fontMono = '"Geist Mono Variable", "Geist Mono", ui-monospace, monospace';
+const fontSans = '"Space Grotesk Variable", "Space Grotesk", sans-serif';
+const fontMono = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace';
 
 // Ops-terminal palette: neutral zinc base, single desaturated emerald accent.
 const palette = {

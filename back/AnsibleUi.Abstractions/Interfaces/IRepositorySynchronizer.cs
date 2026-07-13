@@ -6,6 +6,7 @@ public interface IRepositorySynchronizer
 {
 	RepositoryStatus Status { get; }
 	Task<RepositorySnapshot> GetSnapshotAsync(CancellationToken ct = default);
+	Task<Inventory> GetInventoryAsync(CancellationToken ct = default);
 	Task<RepositoryStatus> SynchronizeAsync(CancellationToken ct = default);
 	Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default);
 	Task<int> ExecutePlaybookAsync(

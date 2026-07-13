@@ -44,7 +44,21 @@ export interface InventoryGroup {
 
 export interface Inventory {
 	groups: InventoryGroup[];
-	hosts: string[];
+	hosts: InventoryHost[];
+}
+
+export type InventoryHostStatus = "reachable" | "unreachable" | "unknown";
+
+export interface InventoryHost {
+	name: string;
+	ip: string | null;
+	os: string | null;
+	osFamily: string | null;
+	groups: string[];
+	status: InventoryHostStatus;
+	error: string | null;
+	uptime: string | null;
+	lastChecked: string | null;
 }
 
 export interface RepositoryStatus {

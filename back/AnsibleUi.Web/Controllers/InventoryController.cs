@@ -12,7 +12,7 @@ public sealed class InventoryController(IRepositorySynchronizer synchronizer) : 
 	[HttpGet]
 	public async Task<IActionResult> Get(CancellationToken ct)
 	{
-		return Ok((await synchronizer.GetSnapshotAsync(ct)).Inventory);
+		return Ok(await synchronizer.GetInventoryAsync(ct));
 	}
 
 	/// <summary>Raw vars.yml of a host — vault values stay encrypted by construction.</summary>
