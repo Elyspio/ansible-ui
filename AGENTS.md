@@ -49,7 +49,7 @@ front/
 deploy/build/                    Single-container image and deployment scripts
 ```
 
-Backend uses .NET 10, ASP.NET Core, Aspire 13, MongoDB, SSH.NET, SignalR, and xUnit v3. Frontend uses React 19, TypeScript, Vite+, MUI 9, TanStack Query, Axios, `react-oidc-context`, React Router, SignalR, and Vitest.
+Backend uses .NET 10, ASP.NET Core, Aspire 13, MongoDB, SSH.NET, SignalR, xUnit v3 (Microsoft Testing Platform), and Shouldly. Frontend uses React 19, TypeScript, Vite+, MUI 9, TanStack Query, Axios, `react-oidc-context`, React Router, SignalR, and Vitest.
 
 ## Development commands
 
@@ -69,9 +69,9 @@ Backend commands from repository root:
 
 ```bash
 dotnet build back/AnsibleUi.slnx
-dotnet test back/AnsibleUi.slnx
-dotnet test back/AnsibleUi.Core.Tests/AnsibleUi.Core.Tests.csproj
-dotnet test back/AnsibleUi.Adapters.Tests/AnsibleUi.Adapters.Tests.csproj
+dotnet test --solution back/AnsibleUi.slnx
+dotnet test --project back/AnsibleUi.Core.Tests/AnsibleUi.Core.Tests.csproj
+dotnet test --project back/AnsibleUi.Adapters.Tests/AnsibleUi.Adapters.Tests.csproj
 ```
 
 `AnsibleUi.E2E` is not included in `AnsibleUi.slnx`. Run it explicitly. It needs Docker and Playwright Chromium:
@@ -79,7 +79,7 @@ dotnet test back/AnsibleUi.Adapters.Tests/AnsibleUi.Adapters.Tests.csproj
 ```bash
 dotnet build back/AnsibleUi.E2E/AnsibleUi.E2E.csproj
 pwsh back/AnsibleUi.E2E/bin/Debug/net10.0/playwright.ps1 install chromium
-dotnet test back/AnsibleUi.E2E/AnsibleUi.E2E.csproj
+dotnet test --project back/AnsibleUi.E2E/AnsibleUi.E2E.csproj
 ```
 
 Frontend commands from `front/`:
@@ -193,6 +193,7 @@ Frontend runtime config comes from `front/public/conf.js`, replaced during deplo
 
 ## Testing expectations
 
+- Backend tests use xUnit v3 on Microsoft Testing Platform with Shouldly assertions (`actual.ShouldBe(expected)`), not xUnit `Assert`. String `ShouldContain` is case-insensitive by default; pass `Case.Sensitive` when asserting generated scripts.
 - Core locking, degraded-state, snapshot, or fact-cache changes: extend `AnsibleUi.Core.Tests`.
 - Git/Ansible command or POSIX quoting changes: extend `AnsibleUi.Adapters.Tests` and assert generated scripts precisely.
 - Runtime frontend config changes: extend `front/src/config/runtime.test.ts`.

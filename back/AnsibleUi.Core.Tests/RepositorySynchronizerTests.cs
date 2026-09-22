@@ -2,6 +2,7 @@ using AnsibleUi.Abstractions.Interfaces;
 using AnsibleUi.Abstractions.Models;
 using AnsibleUi.Core.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Shouldly;
 using Xunit;
 
 namespace AnsibleUi.Core.Tests;
@@ -18,11 +19,11 @@ public sealed class RepositorySynchronizerTests
 		var status = await synchronizer.SynchronizeAsync(ct);
 		var snapshot = await synchronizer.GetSnapshotAsync(ct);
 
-		Assert.False(status.IsDegraded);
-		Assert.Equal("abc123", status.Revision);
-		Assert.Equal(status.Revision, snapshot.Revision);
-		Assert.Single(snapshot.Playbooks);
-		Assert.Equal(["host-1"], snapshot.Inventory.Hosts.Select(host => host.Name));
+		status.IsDegraded.ShouldBeFalse();
+		status.Revision.ShouldBe("abc123");
+		snapshot.Revision.ShouldBe(status.Revision);
+		snapshot.Playbooks.ShouldHaveSingleItem();
+		snapshot.Inventory.Hosts.Select(host => host.Name).ShouldBe(["host-1"]);
 	}
 
 	[Fact]
@@ -40,9 +41,9 @@ public sealed class RepositorySynchronizerTests
 		var snapshots = await Task.WhenAll(
 			Enumerable.Range(0, 8).Select(_ => synchronizer.GetSnapshotAsync(ct)));
 
-		Assert.Equal(1, gitRepository.RemoteRevisionCalls);
-		Assert.Equal(1, gitRepository.SynchronizeCalls);
-		Assert.All(snapshots, snapshot => Assert.Equal("abc123", snapshot.Revision));
+		gitRepository.RemoteRevisionCalls.ShouldBe(1);
+		gitRepository.SynchronizeCalls.ShouldBe(1);
+		snapshots.ShouldAllBe(snapshot => snapshot.Revision == "abc123");
 	}
 
 	[Fact]
@@ -57,9 +58,9 @@ public sealed class RepositorySynchronizerTests
 		var status = await synchronizer.SynchronizeAsync(ct);
 		var stale = await synchronizer.GetSnapshotAsync(ct);
 
-		Assert.Same(initial, stale);
-		Assert.True(status.IsDegraded);
-		Assert.Equal("Forge unavailable", status.Error);
+		stale.ShouldBeSameAs(initial);
+		status.IsDegraded.ShouldBeTrue();
+		status.Error.ShouldBe("Forge unavailable");
 	}
 
 	[Fact]
@@ -79,11 +80,11 @@ public sealed class RepositorySynchronizerTests
 		var probe = synchronizer.SynchronizeAsync(ct);
 		await Task.Delay(30, ct);
 
-		Assert.Equal(1, gitRepository.SynchronizeCalls);
-		Assert.False(probe.IsCompleted);
+		gitRepository.SynchronizeCalls.ShouldBe(1);
+		probe.IsCompleted.ShouldBeFalse();
 		ansibleRebond.FinishExecute.SetResult();
 		await Task.WhenAll(run, probe);
-		Assert.Equal(2, gitRepository.SynchronizeCalls);
+		gitRepository.SynchronizeCalls.ShouldBe(2);
 	}
 
 	[Fact]
@@ -98,7 +99,7 @@ public sealed class RepositorySynchronizerTests
 		await synchronizer.ExecutePlaybookAsync(
 			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
 
-		Assert.Equal(2, gitRepository.SynchronizeCalls);
+		gitRepository.SynchronizeCalls.ShouldBe(2);
 	}
 
 	[Fact]
@@ -114,8 +115,8 @@ public sealed class RepositorySynchronizerTests
 
 		await synchronizer.SynchronizeAsync(ct);
 
-		Assert.Equal(changedEvents, notifier.RepositoryChangedCalls);
-		Assert.True(notifier.RepositoryStatusChangedCalls > 0);
+		notifier.RepositoryChangedCalls.ShouldBe(changedEvents);
+		notifier.RepositoryStatusChangedCalls.ShouldBeGreaterThan(0);
 	}
 
 	[Fact]
@@ -130,7 +131,7 @@ public sealed class RepositorySynchronizerTests
 		await synchronizer.ExecutePlaybookAsync(
 			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
 
-		Assert.Equal(2, gitRepository.SynchronizeCalls);
+		gitRepository.SynchronizeCalls.ShouldBe(2);
 	}
 
 	[Fact]
@@ -151,16 +152,16 @@ public sealed class RepositorySynchronizerTests
 
 		var inventory = await synchronizer.GetInventoryAsync(ct);
 
-		var probed = Assert.Single(inventory.Hosts, host => host.Name == "host-1");
-		Assert.Equal("reachable", probed.Status);
-		Assert.Equal("10.0.0.1", probed.Ip);
-		Assert.Equal(TimeSpan.FromHours(2), probed.Uptime);
-		Assert.Equal(["web"], probed.Groups);
-		Assert.NotNull(probed.LastChecked);
-		var missing = Assert.Single(inventory.Hosts, host => host.Name == "host-2");
-		Assert.Equal("unknown", missing.Status);
-		Assert.Equal("Fact probe returned no result for this host.", missing.Error);
-		Assert.NotNull(missing.LastChecked);
+		var probed = inventory.Hosts.Where(host => host.Name == "host-1").ShouldHaveSingleItem();
+		probed.Status.ShouldBe("reachable");
+		probed.Ip.ShouldBe("10.0.0.1");
+		probed.Uptime.ShouldBe(TimeSpan.FromHours(2));
+		probed.Groups.ShouldBe(["web"]);
+		probed.LastChecked.ShouldNotBeNull();
+		var missing = inventory.Hosts.Where(host => host.Name == "host-2").ShouldHaveSingleItem();
+		missing.Status.ShouldBe("unknown");
+		missing.Error.ShouldBe("Fact probe returned no result for this host.");
+		missing.LastChecked.ShouldNotBeNull();
 	}
 
 	[Fact]
@@ -173,7 +174,7 @@ public sealed class RepositorySynchronizerTests
 		await synchronizer.GetInventoryAsync(ct);
 		await synchronizer.GetInventoryAsync(ct);
 
-		Assert.Equal(1, ansibleRebond.FactsCalls);
+		ansibleRebond.FactsCalls.ShouldBe(1);
 	}
 
 	[Fact]
@@ -189,7 +190,7 @@ public sealed class RepositorySynchronizerTests
 		await synchronizer.SynchronizeAsync(ct);
 		await synchronizer.GetInventoryAsync(ct);
 
-		Assert.Equal(2, ansibleRebond.FactsCalls);
+		ansibleRebond.FactsCalls.ShouldBe(2);
 	}
 
 	[Fact]
@@ -207,8 +208,8 @@ public sealed class RepositorySynchronizerTests
 		// Degrades to the structure-only inventory instead of queueing behind the run.
 		var inventory = await synchronizer.GetInventoryAsync(ct);
 
-		Assert.Equal(0, ansibleRebond.FactsCalls);
-		Assert.All(inventory.Hosts, host => Assert.Equal("unknown", host.Status));
+		ansibleRebond.FactsCalls.ShouldBe(0);
+		inventory.Hosts.ShouldAllBe(host => host.Status == "unknown");
 		ansibleRebond.FinishExecute.SetResult();
 		await run;
 	}

@@ -11,7 +11,7 @@
 		"lint": "vp lint",
 		"fmt": "vp fmt",
 		"test": "vp test",
-		"test:e2e": "dotnet test ../back/AnsibleUi.E2E/AnsibleUi.E2E.csproj"
+		"test:e2e": "dotnet test --project ../back/AnsibleUi.E2E/AnsibleUi.E2E.csproj"
 	},
 	"dependencies": {
 		"@emotion/react": "^11.14.0",

@@ -3,6 +3,7 @@ using AnsibleUi.Abstractions.Exceptions;
 using AnsibleUi.Abstractions.Interfaces;
 using AnsibleUi.Abstractions.Models;
 using Microsoft.Extensions.Options;
+using Shouldly;
 using Xunit;
 
 namespace AnsibleUi.Adapters.Tests;
@@ -19,9 +20,9 @@ public sealed class AnsibleRebondTests
 
 		var inventory = await rebond.GetInventoryAsync(TestContext.Current.CancellationToken);
 
-		Assert.Equal(["web-1"], inventory.Hosts.Select(host => host.Name));
-		Assert.Single(inventory.Groups);
-		Assert.DoesNotContain(inventory.Groups, group => group.Name == "_meta");
+		inventory.Hosts.Select(host => host.Name).ShouldBe(["web-1"]);
+		inventory.Groups.ShouldHaveSingleItem();
+		inventory.Groups.ShouldNotContain(group => group.Name == "_meta");
 	}
 
 	[Fact]
@@ -36,20 +37,16 @@ public sealed class AnsibleRebondTests
 
 		var facts = await rebond.GetInventoryHostFactsAsync(TestContext.Current.CancellationToken);
 
-		Assert.Collection(facts,
-			fact =>
-			{
-				Assert.Equal("reachable", fact.Status);
-				Assert.Equal("10.0.0.1", fact.Ip);
-				Assert.Equal(TimeSpan.FromHours(1), fact.Uptime);
-			},
-			fact => Assert.Equal("unreachable", fact.Status),
-			fact =>
-			{
-				Assert.Equal("unknown", fact.Status);
-				Assert.Equal("Python interpreter missing", fact.Error);
-			});
-		Assert.Contains("filter=ansible_os_family,ansible_distribution,ansible_default_ipv4,ansible_uptime_seconds", commands.LastScript);
+		facts.Count.ShouldBe(3);
+		facts[0].ShouldSatisfyAllConditions(
+			fact => fact.Status.ShouldBe("reachable"),
+			fact => fact.Ip.ShouldBe("10.0.0.1"),
+			fact => fact.Uptime.ShouldBe(TimeSpan.FromHours(1)));
+		facts[1].Status.ShouldBe("unreachable");
+		facts[2].ShouldSatisfyAllConditions(
+			fact => fact.Status.ShouldBe("unknown"),
+			fact => fact.Error.ShouldBe("Python interpreter missing"));
+		commands.LastScript.ShouldContain("filter=ansible_os_family,ansible_distribution,ansible_default_ipv4,ansible_uptime_seconds", Case.Sensitive);
 	}
 
 	[Fact]
@@ -57,7 +54,7 @@ public sealed class AnsibleRebondTests
 	{
 		IAnsibleRebond rebond = Create(new FakeCommands(""));
 
-		await Assert.ThrowsAsync<HttpException>(() =>
+		await Should.ThrowAsync<HttpException>(() =>
 			rebond.GetHostVarsAsync("web;cat /etc/shadow", TestContext.Current.CancellationToken));
 	}
 
@@ -71,9 +68,9 @@ public sealed class AnsibleRebondTests
 		var exitCode = await rebond.ExecutePlaybookAsync(
 			"playbooks/site.yml", new RunOptions(), chunk => { output.Add(chunk); return Task.CompletedTask; }, TestContext.Current.CancellationToken);
 
-		Assert.Equal(0, exitCode);
-		Assert.Equal(["PLAY [site]"], output);
-		Assert.Contains("ansible-playbook 'playbooks/site.yml'", commands.LastScript);
+		exitCode.ShouldBe(0);
+		output.ShouldBe(["PLAY [site]"]);
+		commands.LastScript.ShouldContain("ansible-playbook 'playbooks/site.yml'", Case.Sensitive);
 	}
 
 	[Fact]
@@ -85,7 +82,7 @@ public sealed class AnsibleRebondTests
 		await rebond.ExecutePlaybookAsync(
 			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, TestContext.Current.CancellationToken);
 
-		Assert.Contains("--ssh-common-args '-o StrictHostKeyChecking=accept-new'", commands.LastScript);
+		commands.LastScript.ShouldContain("--ssh-common-args '-o StrictHostKeyChecking=accept-new'", Case.Sensitive);
 	}
 
 	private static IAnsibleRebond Create(FakeCommands commands, bool acceptNewSshHostKeys = false) => new AnsibleRebond(commands,
