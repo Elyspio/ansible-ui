@@ -53,7 +53,7 @@ Backend uses .NET 10, ASP.NET Core, Aspire 13, MongoDB, SSH.NET, SignalR, and xU
 
 ## Development commands
 
-Requirements: .NET 10 SDK, pnpm 11, and Docker for Aspire services. Node 24 matches container build.
+Requirements: .NET 10 SDK, pnpm 12, and Docker for Aspire services. Node 24 matches container build.
 
 Start complete local stack from `root/`:
 
@@ -89,11 +89,13 @@ pnpm install --frozen-lockfile
 pnpm dev
 pnpm build
 pnpm check
+pnpm fmt
+pnpm lint
 pnpm test
 pnpm test:e2e
 ```
 
-`pnpm check` runs `vp check --fix`; it mutates files. Review resulting diff. Keep `front/package.json`, `front/pnpm-lock.yaml`, and catalog entries in `front/pnpm-workspace.yaml` consistent when dependencies change.
+`pnpm check` runs `vp check`: Oxfmt, Oxlint with type-aware rules, and full TypeScript type check. It does not mutate files; `pnpm fmt` formats and `pnpm vp check --fix` applies fixes. Review resulting diff. Keep `front/package.json`, `front/pnpm-lock.yaml`, and catalog entries in `front/pnpm-workspace.yaml` consistent when dependencies change.
 
 ## Backend architecture and invariants
 

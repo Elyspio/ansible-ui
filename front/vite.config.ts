@@ -31,5 +31,7 @@ export default defineConfig({
 	},
 	lint: {
 		ignorePatterns: ["dist/**"],
+		// Type-aware rules + full type check: `vp check` replaces a separate `tsc` step.
+		options: { typeAware: true, typeCheck: true },
 	},
 });
