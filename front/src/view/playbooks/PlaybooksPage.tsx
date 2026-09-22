@@ -16,7 +16,7 @@ import FolderOffRoundedIcon from "@mui/icons-material/FolderOffRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { usePlaybooks, useRepositoryStatus, useRuns } from "@/core/api/queries";
 import type { Playbook, Run } from "@/core/api/types";
 import { fontMono } from "@/config/theme";

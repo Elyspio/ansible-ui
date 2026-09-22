@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Alert, Box, Divider, List, ListItemButton, Skeleton, Typography } from "@mui/material";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import { useRuns } from "@/core/api/queries";
