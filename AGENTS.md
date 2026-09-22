@@ -53,7 +53,7 @@ Backend uses .NET 10, ASP.NET Core, Aspire 13, MongoDB, SSH.NET, SignalR, xUnit 
 
 ## Development commands
 
-Requirements: .NET 10 SDK, pnpm 12, and Docker for Aspire services. Node 24 matches container build.
+Requirements: .NET 10 SDK, pnpm 12, and Docker for Aspire services. Node 26 matches container build.
 
 Start complete local stack from `root/`:
 
@@ -214,6 +214,6 @@ Do not require a real Rebond, Git forge, managed host, or SSH key in unit tests.
 
 ## Deployment cautions
 
-`deploy/build/dockerfile` builds frontend with Node 24, publishes API with .NET 10, copies SPA into `wwwroot`, and runs one container on port 4000.
+`deploy/build/dockerfile` builds frontend with Node 26 and pnpm 12.5.1, publishes API with .NET 10, copies SPA into `wwwroot`, and runs one container on port 4000.
 
 `deploy/build/build.ps1` builds, pushes to an external registry, and deploys an external Helm chart from a machine-specific path. Run it only when user explicitly asks to publish/deploy. `deploy/build/docker-compose.yml` is not complete Rebond configuration; required SSH, Git, Ansible settings, and key mounts must still be supplied.
