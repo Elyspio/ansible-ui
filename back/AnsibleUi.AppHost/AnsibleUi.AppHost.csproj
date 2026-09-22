@@ -1,13 +1,13 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+<Project Sdk="Aspire.AppHost.Sdk/13.5.4">
 
 	<ItemGroup>
 		<ProjectReference Include="..\AnsibleUi.Web\AnsibleUi.Web.csproj"/>
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Aspire.Hosting.JavaScript" Version="13.4.6"/>
-		<PackageReference Include="Aspire.Hosting.Keycloak" Version="13.4.6-preview.1.26319.6"/>
-		<PackageReference Include="Aspire.Hosting.MongoDB" Version="13.4.6"/>
+		<PackageReference Include="Aspire.Hosting.JavaScript" Version="13.5.4"/>
+		<PackageReference Include="Aspire.Hosting.Keycloak" Version="13.5.4-preview.1.26464.4"/>
+		<PackageReference Include="Aspire.Hosting.MongoDB" Version="13.5.4"/>
 	</ItemGroup>
 
 	<PropertyGroup>
@@ -16,6 +16,9 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<UserSecretsId>9c1c46be-6a4e-4a44-9107-2ab8be31b1a3</UserSecretsId>
+		<!-- Aspire 13.5 warns while DCP and the dashboard still come from NuGet packages rather than the
+		     Aspire CLI bundle. Keeping the packages lets `dotnet build` and Aspire.Hosting.Testing work without the CLI. -->
+		<NoWarn>$(NoWarn);ASPIRE010</NoWarn>
 	</PropertyGroup>
 
 </Project>
