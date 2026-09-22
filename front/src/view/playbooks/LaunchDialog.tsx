@@ -42,7 +42,7 @@ export function LaunchDialog({
 	const targets = useMemo(() => {
 		if (!inventory.data) return [];
 		const groups = inventory.data.groups.map((g) => g.name);
-		return [...groups, ...inventory.data.hosts];
+		return [...groups, ...inventory.data.hosts.map((h) => h.name)];
 	}, [inventory.data]);
 
 	const busy = runs.data?.some((r) => r.status === "Running" || r.status === "Queued") ?? false;
