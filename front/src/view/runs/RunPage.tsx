@@ -126,7 +126,12 @@ export function RunPage() {
 					)}
 					{run.options.check && <Chip size="small" variant="outlined" label="--check" />}
 					{run.options.diff && <Chip size="small" variant="outlined" label="--diff" />}
-					<Typography variant="body2" color="text.secondary">
+					<Typography
+						variant="body2"
+						sx={{
+							color: "text.secondary",
+						}}
+					>
 						by {run.requestedBy} · {formatDateTime(run.createdAt)}
 						{run.startedAt && ` · ${formatDuration(run.startedAt, run.finishedAt)}`}
 						{run.exitCode !== null && run.exitCode !== 0 && ` · exit ${run.exitCode}`}
@@ -150,7 +155,12 @@ export function RunPage() {
 
 			{run && run.recap.length > 0 && (
 				<Box sx={{ pb: 1 }}>
-					<Typography variant="overline" color="text.secondary">
+					<Typography
+						variant="overline"
+						sx={{
+							color: "text.secondary",
+						}}
+					>
 						Play recap
 					</Typography>
 					<Table

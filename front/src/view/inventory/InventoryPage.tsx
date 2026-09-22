@@ -143,8 +143,8 @@ export function InventoryPage() {
 						Inventory
 					</Typography>
 					<Typography
-						color="text.secondary"
 						sx={{
+							color: "text.secondary",
 							fontFamily: fontMono,
 							mt: 0.75,
 							fontSize: { xs: 12, md: 14 },
@@ -285,10 +285,20 @@ export function InventoryPage() {
 									mb: 1,
 								}}
 							>
-								<Typography variant="overline" color="text.secondary">
+								<Typography
+									variant="overline"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									Explorer
 								</Typography>
-								<Typography variant="overline" color="text.secondary">
+								<Typography
+									variant="overline"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									{groups.length} groups
 								</Typography>
 							</Box>
@@ -500,8 +510,11 @@ function HostDetail({ host }: { host: InventoryHost }) {
 			>
 				<Box sx={{ minWidth: 0 }}>
 					<Typography
-						color="text.secondary"
-						sx={{ fontFamily: fontMono, fontSize: 12.5 }}
+						sx={{
+							color: "text.secondary",
+							fontFamily: fontMono,
+							fontSize: 12.5,
+						}}
 					>
 						{host.ip ?? "no IPv4 address"}
 					</Typography>
@@ -556,7 +569,12 @@ function HostDetail({ host }: { host: InventoryHost }) {
 				))}
 			</Box>
 			<Box sx={{ my: 4, borderTop: "1px solid var(--border)" }} />
-			<Typography variant="overline" color="text.secondary">
+			<Typography
+				variant="overline"
+				sx={{
+					color: "text.secondary",
+				}}
+			>
 				Facts
 			</Typography>
 			<Box
@@ -617,7 +635,14 @@ function HostVars({ host }: { host: string }) {
 
 	return (
 		<>
-			<Typography variant="overline" color="text.secondary" sx={{ display: "block", mt: 4 }}>
+			<Typography
+				variant="overline"
+				sx={{
+					color: "text.secondary",
+					display: "block",
+					mt: 4,
+				}}
+			>
 				host_vars / vars.yml
 			</Typography>
 			{vars.isPending && (

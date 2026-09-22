@@ -25,7 +25,12 @@ export function EmptyState({
 			}}
 		>
 			<Box sx={{ opacity: 0.55, "& svg": { fontSize: 36 } }}>{icon}</Box>
-			<Typography variant="h5" color="text.primary">
+			<Typography
+				variant="h5"
+				sx={{
+					color: "text.primary",
+				}}
+			>
 				{title}
 			</Typography>
 			{hint && (

@@ -80,7 +80,13 @@ export function LaunchDialog({
 		<Dialog open={playbook !== null} onClose={close} fullWidth maxWidth="sm">
 			<DialogTitle>
 				Run playbook
-				<Typography sx={{ fontFamily: fontMono, fontSize: 12.5 }} color="text.secondary">
+				<Typography
+					sx={{
+						color: "text.secondary",
+						fontFamily: fontMono,
+						fontSize: 12.5,
+					}}
+				>
 					{playbook?.path}
 				</Typography>
 			</DialogTitle>
@@ -117,7 +123,12 @@ export function LaunchDialog({
 								<Typography sx={{ fontSize: 14, fontWeight: 600 }}>
 									Check mode
 								</Typography>
-								<Typography variant="body2" color="text.secondary">
+								<Typography
+									variant="body2"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									--check — dry run, nothing is applied on the hosts.
 								</Typography>
 							</Box>
@@ -130,7 +141,12 @@ export function LaunchDialog({
 								<Typography sx={{ fontSize: 14, fontWeight: 600 }}>
 									Show diff
 								</Typography>
-								<Typography variant="body2" color="text.secondary">
+								<Typography
+									variant="body2"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									--diff — show what changes on files and templates.
 								</Typography>
 							</Box>

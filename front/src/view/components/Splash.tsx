@@ -30,7 +30,12 @@ export function Splash({
 				{loading && <CircularProgress size={22} thickness={5} />}
 				<Typography variant="h5">{title}</Typography>
 				{subtitle && (
-					<Typography variant="body2" color="text.secondary">
+					<Typography
+						variant="body2"
+						sx={{
+							color: "text.secondary",
+						}}
+					>
 						{subtitle}
 					</Typography>
 				)}

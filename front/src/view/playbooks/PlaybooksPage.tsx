@@ -151,8 +151,12 @@ export function PlaybooksPage() {
 							Playbooks
 						</Typography>
 						<Typography
-							color="text.secondary"
-							sx={{ fontFamily: fontMono, mt: 0.75, fontSize: { xs: 12, md: 14 } }}
+							sx={{
+								color: "text.secondary",
+								fontFamily: fontMono,
+								mt: 0.75,
+								fontSize: { xs: 12, md: 14 },
+							}}
 						>
 							Discovered on the control node — refreshed with git pull.
 						</Typography>
@@ -230,10 +234,20 @@ export function PlaybooksPage() {
 								borderBottom: "1px solid var(--border)",
 							}}
 						>
-							<Typography variant="overline" color="text.secondary">
+							<Typography
+								variant="overline"
+								sx={{
+									color: "text.secondary",
+								}}
+							>
 								Explorer
 							</Typography>
-							<Typography variant="overline" color="text.secondary">
+							<Typography
+								variant="overline"
+								sx={{
+									color: "text.secondary",
+								}}
+							>
 								{data?.length ?? 0} files
 							</Typography>
 						</Box>
@@ -388,9 +402,12 @@ export function PlaybooksPage() {
 								>
 									<Box sx={{ minWidth: 0 }}>
 										<Typography
-											color="text.secondary"
 											noWrap
-											sx={{ fontFamily: fontMono, fontSize: 12.5 }}
+											sx={{
+												color: "text.secondary",
+												fontFamily: fontMono,
+												fontSize: 12.5,
+											}}
 										>
 											{selected.path}
 										</Typography>
@@ -477,7 +494,12 @@ export function PlaybooksPage() {
 									))}
 								</Box>
 								<Divider sx={{ my: 4 }} />
-								<Typography variant="overline" color="text.secondary">
+								<Typography
+									variant="overline"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									Preview
 								</Typography>
 								<Box
@@ -523,13 +545,22 @@ export function PlaybooksPage() {
 									</Box>
 								</Box>
 								<Divider sx={{ my: 4 }} />
-								<Typography variant="overline" color="text.secondary">
+								<Typography
+									variant="overline"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									Recent runs
 								</Typography>
 								{playbookRuns.length === 0 ? (
 									<Typography
-										color="text.secondary"
-										sx={{ fontFamily: fontMono, fontSize: 12.5, mt: 1.5 }}
+										sx={{
+											color: "text.secondary",
+											fontFamily: fontMono,
+											fontSize: 12.5,
+											mt: 1.5,
+										}}
 									>
 										No runs recorded for this playbook.
 									</Typography>
@@ -572,11 +603,21 @@ export function PlaybooksPage() {
 																: "var(--accent)",
 													}}
 												/>
-												<Box color="text.secondary">
+												<Box
+													sx={{
+														color: "text.secondary",
+													}}
+												>
 													{ago(run.createdAt)}
 												</Box>
 												<Box>{runSummary(run)}</Box>
-												<Box color="text.secondary">{duration(run)}</Box>
+												<Box
+													sx={{
+														color: "text.secondary",
+													}}
+												>
+													{duration(run)}
+												</Box>
 											</Box>
 										))}
 									</Box>
