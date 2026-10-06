@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
 import { SnackbarProvider } from "notistack";
 import { buildTheme, type Mode } from "@/config/theme";

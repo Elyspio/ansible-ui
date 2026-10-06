@@ -16,9 +16,9 @@ public sealed class AuthConfigurationTests
 			new KeyValuePair<string, string?>("Auth:Audience", "ansible-ui"),
 		]);
 
-		var error = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync(ct));
+		var error = await Should.ThrowAsync<OptionsValidationException>(() => host.StartAsync(ct));
 
-		Assert.Contains("Authority", error.Message);
+		error.Message.ShouldContain("Authority", Case.Sensitive);
 	}
 
 	[Fact]
@@ -30,9 +30,9 @@ public sealed class AuthConfigurationTests
 			new KeyValuePair<string, string?>("Auth:Audience", "ansible-ui"),
 		]);
 
-		var error = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync(ct));
+		var error = await Should.ThrowAsync<OptionsValidationException>(() => host.StartAsync(ct));
 
-		Assert.Contains("HTTP(S)", error.Message);
+		error.Message.ShouldContain("HTTP(S)", Case.Sensitive);
 	}
 
 	[Fact]

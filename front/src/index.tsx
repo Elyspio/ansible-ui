@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import "@fontsource-variable/jetbrains-mono";
-import "@fontsource-variable/space-grotesk";
+import "@fontsource-variable/jetbrains-mono/index.css";
+import "@fontsource-variable/space-grotesk/index.css";
 import "@/styles/index.css";
 import { AuthProvider } from "@/core/auth/AuthProvider";
 import { App } from "@/view/App";

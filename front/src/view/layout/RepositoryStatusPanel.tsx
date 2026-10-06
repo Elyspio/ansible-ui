@@ -53,8 +53,12 @@ export function RepositoryStatusPanel() {
 				</Button>
 			</Box>
 			<Typography
-				sx={{ mt: 0.75, fontFamily: fontMono, fontSize: 10 }}
-				color="text.secondary"
+				sx={{
+					color: "text.secondary",
+					mt: 0.75,
+					fontFamily: fontMono,
+					fontSize: 10,
+				}}
 			>
 				Révision distante {data.remoteRevision?.slice(0, 8) ?? "inconnue"}
 				{data.isRunningPlaybook ? " · Run actif" : ""}

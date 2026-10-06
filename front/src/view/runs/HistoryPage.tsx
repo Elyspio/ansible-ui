@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Alert, Box, Divider, List, ListItemButton, Skeleton, Typography } from "@mui/material";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import { useRuns } from "@/core/api/queries";
@@ -15,7 +15,14 @@ export function HistoryPage() {
 	return (
 		<Box sx={{ px: { xs: 2, md: 5 }, py: 4, maxWidth: 980 }}>
 			<Typography variant="h1">History</Typography>
-			<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
+			<Typography
+				variant="body2"
+				sx={{
+					color: "text.secondary",
+					mt: 0.5,
+					mb: 3,
+				}}
+			>
 				Every run, newest first — output and recap are kept forever.
 			</Typography>
 
@@ -52,7 +59,13 @@ export function HistoryPage() {
 								>
 									{run.playbook}
 								</Typography>
-								<Typography variant="body2" color="text.secondary" noWrap>
+								<Typography
+									variant="body2"
+									noWrap
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									{run.options.limit
 										? `--limit ${run.options.limit}`
 										: "whole inventory"}
@@ -66,13 +79,21 @@ export function HistoryPage() {
 								<RecapBadges recap={run.recap} />
 							</Box>
 							<Box sx={{ width: 130, flexShrink: 0, textAlign: "right" }}>
-								<Typography variant="body2" color="text.secondary">
+								<Typography
+									variant="body2"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									{formatRelative(run.createdAt)}
 								</Typography>
 								{run.startedAt && run.finishedAt && (
 									<Typography
-										sx={{ fontFamily: fontMono, fontSize: 11 }}
-										color="text.secondary"
+										sx={{
+											color: "text.secondary",
+											fontFamily: fontMono,
+											fontSize: 11,
+										}}
 									>
 										{formatDuration(run.startedAt, run.finishedAt)}
 									</Typography>

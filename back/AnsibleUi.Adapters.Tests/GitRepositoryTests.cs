@@ -2,6 +2,7 @@ using AnsibleUi.Adapters.Git;
 using AnsibleUi.Abstractions.Interfaces;
 using AnsibleUi.Abstractions.Models;
 using Microsoft.Extensions.Options;
+using Shouldly;
 using Xunit;
 
 namespace AnsibleUi.Adapters.Tests;
@@ -21,11 +22,11 @@ public sealed class GitRepositoryTests
 
 		await repository.SynchronizeAsync(TestContext.Current.CancellationToken);
 
-		var script = Assert.Single(commands.Scripts);
-		Assert.Contains("git remote set-url origin 'ssh://git@example/ansible.git'", script);
-		Assert.Contains("git checkout -B 'main' origin/'main'", script);
-		Assert.Contains("git reset --hard origin/'main'", script);
-		Assert.DoesNotContain("git clean", script);
+		var script = commands.Scripts.ShouldHaveSingleItem();
+		script.ShouldContain("git remote set-url origin 'ssh://git@example/ansible.git'", Case.Sensitive);
+		script.ShouldContain("git checkout -B 'main' origin/'main'", Case.Sensitive);
+		script.ShouldContain("git reset --hard origin/'main'", Case.Sensitive);
+		script.ShouldNotContain("git clean");
 	}
 
 	private sealed class FakeCommands : IRemoteCommandExecutor

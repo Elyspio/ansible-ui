@@ -22,7 +22,7 @@ public sealed class KeycloakE2ETests
 		await app.ResourceNotifications.WaitForResourceHealthyAsync("api", ct).WaitAsync(TimeSpan.FromMinutes(2), ct);
 		using var api = app.CreateHttpClient("api");
 		var unauthorized = await api.GetAsync("/api/runs", ct);
-		Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+		unauthorized.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
 		await app.ResourceNotifications.WaitForResourceHealthyAsync("front", ct).WaitAsync(TimeSpan.FromMinutes(2), ct);
 		using var front = app.CreateHttpClient("front");

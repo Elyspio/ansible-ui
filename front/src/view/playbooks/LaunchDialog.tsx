@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
 	Alert,
 	Autocomplete,
@@ -42,7 +42,7 @@ export function LaunchDialog({
 	const targets = useMemo(() => {
 		if (!inventory.data) return [];
 		const groups = inventory.data.groups.map((g) => g.name);
-		return [...groups, ...inventory.data.hosts];
+		return [...groups, ...inventory.data.hosts.map((h) => h.name)];
 	}, [inventory.data]);
 
 	const busy = runs.data?.some((r) => r.status === "Running" || r.status === "Queued") ?? false;
@@ -80,7 +80,13 @@ export function LaunchDialog({
 		<Dialog open={playbook !== null} onClose={close} fullWidth maxWidth="sm">
 			<DialogTitle>
 				Run playbook
-				<Typography sx={{ fontFamily: fontMono, fontSize: 12.5 }} color="text.secondary">
+				<Typography
+					sx={{
+						color: "text.secondary",
+						fontFamily: fontMono,
+						fontSize: 12.5,
+					}}
+				>
 					{playbook?.path}
 				</Typography>
 			</DialogTitle>
@@ -117,7 +123,12 @@ export function LaunchDialog({
 								<Typography sx={{ fontSize: 14, fontWeight: 600 }}>
 									Check mode
 								</Typography>
-								<Typography variant="body2" color="text.secondary">
+								<Typography
+									variant="body2"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									--check — dry run, nothing is applied on the hosts.
 								</Typography>
 							</Box>
@@ -130,7 +141,12 @@ export function LaunchDialog({
 								<Typography sx={{ fontSize: 14, fontWeight: 600 }}>
 									Show diff
 								</Typography>
-								<Typography variant="body2" color="text.secondary">
+								<Typography
+									variant="body2"
+									sx={{
+										color: "text.secondary",
+									}}
+								>
 									--diff — show what changes on files and templates.
 								</Typography>
 							</Box>

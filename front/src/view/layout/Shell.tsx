@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router";
 import {
 	Box,
 	Divider,
@@ -111,8 +111,11 @@ export function Shell({
 						</Typography>
 						<Typography
 							noWrap
-							sx={{ fontFamily: fontMono, fontSize: 10.5 }}
-							color="text.secondary"
+							sx={{
+								color: "text.secondary",
+								fontFamily: fontMono,
+								fontSize: 10.5,
+							}}
 						>
 							{appVersion}
 						</Typography>
