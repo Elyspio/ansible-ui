@@ -1,6 +1,7 @@
 using AnsibleUi.Abstractions.Interfaces;
 using AnsibleUi.Abstractions.Models;
 using AnsibleUi.Core.Services;
+using AnsibleUi.Web.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,9 +18,8 @@ public sealed class RunsController(IRunRepository repository, RunLauncher launch
 		if (string.IsNullOrWhiteSpace(request.Playbook))
 			return BadRequest(new { error = "Playbook is required" });
 
-		var user = User.FindFirst("name")?.Value ?? User.Identity?.Name ?? "unknown";
 		var run = await launcher.SubmitAsync(request.Playbook,
-			new RunOptions { Limit = request.Limit, Check = request.Check, Diff = request.Diff }, user, ct);
+			new RunOptions { Limit = request.Limit, Check = request.Check, Diff = request.Diff }, UserClaims.Name(User), ct: ct);
 
 		return CreatedAtAction(nameof(Get), new { id = run.Id }, run);
 	}

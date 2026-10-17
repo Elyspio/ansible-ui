@@ -23,6 +23,7 @@ public static class DbModule
 		services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(dbName));
 
 		services.AddSingleton<IRunRepository, RunRepository>();
+		services.AddSingleton<IDraftRepository, DraftRepository>();
 
 		return services;
 	}

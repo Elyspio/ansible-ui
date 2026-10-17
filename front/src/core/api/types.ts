@@ -19,6 +19,8 @@ export interface Run {
 	id: string;
 	playbook: string;
 	options: RunOptions;
+	/** Set for a Run de brouillon. */
+	draft: DraftRunSource | null;
 	status: RunStatus;
 	requestedBy: string;
 	createdAt: string;
@@ -70,4 +72,86 @@ export interface RepositoryStatus {
 	isRunningPlaybook: boolean;
 	isDegraded: boolean;
 	error: string | null;
+}
+
+/** What the signed-in user may do; mirrors GET /api/me. */
+export interface Me {
+	name: string;
+	canEdit: boolean;
+}
+
+/** Run de brouillon source: the pushed Brouillon commit a Run executes. */
+export interface DraftRunSource {
+	draftId: string;
+	title: string;
+	branch: string;
+	revision: string;
+	pullRequestUrl: string | null;
+}
+
+export type DraftStatus = "Open" | "Merged" | "Closed" | "Abandoned";
+
+export interface Draft {
+	id: string;
+	title: string;
+	branch: string;
+	baseRevision: string;
+	headRevision: string | null;
+	createdBy: string;
+	createdAt: string;
+	updatedAt: string;
+	status: DraftStatus;
+	closedAt: string | null;
+	pullRequestNumber: number | null;
+	pullRequestUrl: string | null;
+}
+
+export type DraftFileChangeKind = "Added" | "Modified" | "Deleted" | "Renamed";
+
+export interface DraftFileChange {
+	path: string;
+	kind: DraftFileChangeKind;
+	previousPath: string | null;
+}
+
+export interface DraftWorkspaceStatus {
+	headRevision: string;
+	pushedRevision: string | null;
+	ahead: number;
+	behind: number;
+	hasUncommittedChanges: boolean;
+	changes: DraftFileChange[];
+}
+
+export type CommitCheckState = "None" | "Pending" | "Success" | "Failure";
+
+export interface CommitChecks {
+	state: CommitCheckState;
+	targetUrl: string | null;
+}
+
+export interface DraftDetail {
+	draft: Draft;
+	/** Null once the Brouillon is closed. */
+	workspace: DraftWorkspaceStatus | null;
+	/** Null before the first push or when the forge is unreachable. */
+	checks: CommitChecks | null;
+}
+
+/** Text file of the Dépôt Ansible; content is null for binary or oversized files. */
+export interface RepositoryFile {
+	path: string;
+	content: string | null;
+	/** SHA-256 of the raw bytes, sent back on write for optimistic concurrency. */
+	hash: string;
+	size: number;
+	isVault: boolean;
+	isBinary: boolean;
+	isTooLarge: boolean;
+	isReadOnly: boolean;
+}
+
+export interface PublishedFiles {
+	revision: string;
+	files: string[];
 }

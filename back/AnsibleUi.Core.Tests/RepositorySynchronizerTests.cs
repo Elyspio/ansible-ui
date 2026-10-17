@@ -74,7 +74,7 @@ public sealed class RepositorySynchronizerTests
 		ansibleRebond.ExecuteStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		ansibleRebond.FinishExecute = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-		var run = synchronizer.ExecutePlaybookAsync("playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
+		var run = synchronizer.ExecutePlaybookAsync("playbooks/site.yml", new RunOptions(), null, _ => Task.CompletedTask, ct);
 		await ansibleRebond.ExecuteStarted.Task;
 		gitRepository.RemoteRevision = "def456";
 		var probe = synchronizer.SynchronizeAsync(ct);
@@ -97,7 +97,7 @@ public sealed class RepositorySynchronizerTests
 		gitRepository.HasTrackedChanges = true;
 
 		await synchronizer.ExecutePlaybookAsync(
-			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
+			"playbooks/site.yml", new RunOptions(), null, _ => Task.CompletedTask, ct);
 
 		gitRepository.SynchronizeCalls.ShouldBe(2);
 	}
@@ -129,7 +129,7 @@ public sealed class RepositorySynchronizerTests
 		gitRepository.HasExpectedRepositoryConfiguration = false;
 
 		await synchronizer.ExecutePlaybookAsync(
-			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
+			"playbooks/site.yml", new RunOptions(), null, _ => Task.CompletedTask, ct);
 
 		gitRepository.SynchronizeCalls.ShouldBe(2);
 	}
@@ -202,7 +202,7 @@ public sealed class RepositorySynchronizerTests
 		await synchronizer.GetSnapshotAsync(ct);
 		ansibleRebond.ExecuteStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		ansibleRebond.FinishExecute = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		var run = synchronizer.ExecutePlaybookAsync("playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, ct);
+		var run = synchronizer.ExecutePlaybookAsync("playbooks/site.yml", new RunOptions(), null, _ => Task.CompletedTask, ct);
 		await ansibleRebond.ExecuteStarted.Task;
 
 		// Degrades to the structure-only inventory instead of queueing behind the run.
@@ -274,7 +274,7 @@ public sealed class RepositorySynchronizerTests
 
 		public Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default) => Task.FromResult<string?>(null);
 
-		public async Task<int> ExecutePlaybookAsync(string playbook, RunOptions options, Func<string, Task> onOutput, CancellationToken ct)
+		public async Task<int> ExecutePlaybookAsync(string playbook, RunOptions options, string? workingDirectory, Func<string, Task> onOutput, CancellationToken ct)
 		{
 			ExecuteStarted?.SetResult();
 			if (FinishExecute is not null) await FinishExecute.Task.WaitAsync(ct);
@@ -298,5 +298,6 @@ public sealed class RepositorySynchronizerTests
 			RepositoryStatusChangedCalls++;
 			return Task.CompletedTask;
 		}
+		public Task DraftChangedAsync(Draft draft) => Task.CompletedTask;
 	}
 }

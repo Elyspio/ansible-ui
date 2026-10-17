@@ -10,4 +10,7 @@ public sealed class AuthOptions
 	[Required] public string Authority { get; set; } = "";
 
 	[Required] public string Audience { get; set; } = "";
+
+	/// <summary>Role allowing Brouillons: editing, pushing and running unmerged code on managed hosts.</summary>
+	[Required(AllowEmptyStrings = false)] public string EditorRole { get; set; } = "ansible-ui-editor";
 }

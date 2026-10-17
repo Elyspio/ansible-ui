@@ -66,11 +66,23 @@ public sealed class AnsibleRebondTests
 		var output = new List<string>();
 
 		var exitCode = await rebond.ExecutePlaybookAsync(
-			"playbooks/site.yml", new RunOptions(), chunk => { output.Add(chunk); return Task.CompletedTask; }, TestContext.Current.CancellationToken);
+			"playbooks/site.yml", new RunOptions(), null, chunk => { output.Add(chunk); return Task.CompletedTask; }, TestContext.Current.CancellationToken);
 
 		exitCode.ShouldBe(0);
 		output.ShouldBe(["PLAY [site]"]);
 		commands.LastScript.ShouldContain("ansible-playbook 'playbooks/site.yml'", Case.Sensitive);
+	}
+
+	[Fact]
+	public async Task Run_of_a_draft_executes_from_its_worktree()
+	{
+		var commands = new FakeCommands("");
+		IAnsibleRebond rebond = Create(commands);
+
+		await rebond.ExecutePlaybookAsync(
+			"playbooks/site.yml", new RunOptions(), "/srv/ansible.drafts/runs/42/ansible", _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+
+		commands.LastScript.ShouldStartWith("cd '/srv/ansible.drafts/runs/42/ansible' && exec env", Case.Sensitive);
 	}
 
 	[Fact]
@@ -80,7 +92,7 @@ public sealed class AnsibleRebondTests
 		IAnsibleRebond rebond = Create(commands, acceptNewSshHostKeys: true);
 
 		await rebond.ExecutePlaybookAsync(
-			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+			"playbooks/site.yml", new RunOptions(), null, _ => Task.CompletedTask, TestContext.Current.CancellationToken);
 
 		commands.LastScript.ShouldContain("--ssh-common-args '-o StrictHostKeyChecking=accept-new'", Case.Sensitive);
 	}

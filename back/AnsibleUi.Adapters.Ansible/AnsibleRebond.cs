@@ -21,11 +21,7 @@ public sealed partial class AnsibleRebond(
 			$"cd {PosixShell.Quote(_options.WorkingDirectory)} && find playbooks -type f \\( -name '*.yml' -o -name '*.yaml' \\) | sort", ct);
 		RequireSuccess(result, "Could not list playbooks");
 		return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-			.Select(path =>
-			{
-				var segments = path.Split('/');
-				return new Playbook(path, Path.GetFileNameWithoutExtension(segments[^1]), segments.Length > 2 ? segments[^2] : "base");
-			}).ToList();
+			.Select(Playbook.FromPath).ToList();
 	}
 
 	public async Task<Inventory> GetInventoryAsync(CancellationToken ct = default)
@@ -77,7 +73,7 @@ public sealed partial class AnsibleRebond(
 		return result.Succeeded ? result.StandardOutput : null;
 	}
 
-	public async Task<int> ExecutePlaybookAsync(string playbook, RunOptions options, Func<string, Task> onOutput, CancellationToken ct)
+	public async Task<int> ExecutePlaybookAsync(string playbook, RunOptions options, string? workingDirectory, Func<string, Task> onOutput, CancellationToken ct)
 	{
 		var arguments = new StringBuilder($"ansible-playbook {PosixShell.Quote(playbook)}");
 		if (!string.IsNullOrWhiteSpace(options.Limit)) arguments.Append($" --limit {PosixShell.Quote(options.Limit)}");
@@ -86,7 +82,7 @@ public sealed partial class AnsibleRebond(
 		if (_options.AcceptNewSshHostKeys)
 			arguments.Append(" --ssh-common-args '-o StrictHostKeyChecking=accept-new'");
 		var result = await commands.ExecuteStreamingAsync(
-			$"cd {PosixShell.Quote(_options.WorkingDirectory)} && exec env ANSIBLE_FORCE_COLOR=True {arguments} 2>&1", onOutput, ct);
+			$"cd {PosixShell.Quote(workingDirectory ?? _options.WorkingDirectory)} && exec env ANSIBLE_FORCE_COLOR=True {arguments} 2>&1", onOutput, ct);
 		return result.ExitCode;
 	}
 

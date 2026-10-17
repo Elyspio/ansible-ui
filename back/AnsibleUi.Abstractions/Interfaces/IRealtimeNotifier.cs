@@ -16,4 +16,7 @@ public interface IRealtimeNotifier
 
 	/// <summary>Repository synchronization or Run activity changed.</summary>
 	Task RepositoryStatusChangedAsync(RepositoryStatus status);
+
+	/// <summary>A Brouillon was created, edited, pushed, rebased or closed — broadcast.</summary>
+	Task DraftChangedAsync(Draft draft);
 }

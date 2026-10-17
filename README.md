@@ -6,6 +6,9 @@ Web UI to launch and track Ansible playbook runs on a remote Rebond, over SSH.
 - **Watch** the live output streamed from the Rebond.
 - **Browse** the full run history with per-host recap badges.
 - **Inspect** your inventory (read-only; vault-encrypted values are never shown).
+- **Browse** the Dépôt Ansible files at the Révision distante (read-only, Monaco editor).
+- **Edit** them in a Brouillon ("draft"): autosaved to its own Git branch, pushed as a pull
+  request on Forgejo/Gitea, and runnable on its pushed commit before merge (editor role only).
 
 The app never runs Ansible itself: it connects over SSH to a Rebond you own — a machine that
 holds SSH access to your managed hosts and your vault password. The API synchronizes the Dépôt
@@ -39,12 +42,21 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
     "WorkingDirectory": "/home/ansible/infrastructure/ansible",
     "AcceptNewSshHostKeys": true
   },
+  "Drafts": {
+    "CommitterName": "Ansible UI",
+    "CommitterEmail": "ansible-ui@example.lan"
+  },
+  "Forge": {
+    "BaseUrl": "https://forge.example.lan",
+    "Token": "<forgejo token, from a secret>"
+  },
   "RepositorySynchronization": {
     "ProbeInterval": "00:00:01"
   },
   "Auth": {
     "Authority": "https://sso.example.lan/realms/main",
-    "Audience": "ansible-ui"
+    "Audience": "ansible-ui",
+    "EditorRole": "ansible-ui-editor"
   }
 }
 ```
@@ -52,6 +64,13 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
 `Ansible:WorkingDirectory` must be an absolute POSIX path inside `GitRepository:Path`.
 `Ansible:AcceptNewSshHostKeys` is disabled by default. When enabled, Ansible accepts and stores
 unknown OpenSSH host keys, but still rejects a host whose known key changed.
+
+Brouillons live in a separate clone at `Drafts:Root` (default `<GitRepository:Path>.drafts`) and
+never touch the authoritative clone. The Rebond Git key must be allowed to push. `Forge:Token`
+needs read/write access to the repository pull requests; `Forge:Owner` and `Forge:Repository`
+default to the last two segments of `GitRepository:Url`. Only users holding `Auth:EditorRole`
+(Keycloak realm or client role) can use Brouillons: a Run de brouillon executes unreviewed code
+on every managed host, so grant that role like root access to them.
 
 OIDC is mandatory. Kubernetes must inject backend `Auth__Authority` and `Auth__Audience`,
 and deploy a frontend `conf.js` with `oauth.authority` and `oauth.client_id`.

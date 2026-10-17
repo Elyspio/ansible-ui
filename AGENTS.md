@@ -21,17 +21,18 @@ Normal Run path:
 4. Persist streamed ANSI output and broadcast it through SignalR.
 5. Parse final `PLAY RECAP` and persist terminal Run state.
 
-Keep French ubiquitous-language terms consistent: **Rebond** is remote execution machine; **Dépôt Ansible** is Git repository exposed by Ansible UI; **Révision distante** is current commit of configured reference branch; **Synchronisation** aligns Rebond copy with that revision. Do not replace them with “control node”, “repo”, “remote”, “clone”, “pull”, or “refresh” in product-facing text.
+Keep French ubiquitous-language terms consistent: **Rebond** is remote execution machine; **Dépôt Ansible** is Git repository exposed by Ansible UI; **Révision distante** is current commit of configured reference branch; **Synchronisation** aligns Rebond copy with that revision; **Brouillon** is a set of changes to Dépôt Ansible edited in its own worktree, committed to its own branch, and reviewed through a pull request ("Draft" in English UI); **Run de brouillon** is a Run executing a Brouillon's pushed commit. Do not replace them with “control node”, “repo”, “remote”, “clone”, “pull”, or “refresh” in product-facing text.
 
 ## Repository map
 
 ```text
 back/
   AnsibleUi.Abstractions/        Models, interfaces, HttpException, POSIX shell helpers
-  AnsibleUi.Core/                Repository synchronization, Run queue, recap parsing
+  AnsibleUi.Core/                Repository synchronization, Run queue, Brouillons, recap parsing
   AnsibleUi.Adapters.Ansible/    Ansible command construction and output parsing
-  AnsibleUi.Adapters.Git/        Authoritative Git mirror command construction
-  AnsibleUi.Adapters.MongoDB/    MongoDB Run persistence
+  AnsibleUi.Adapters.Git/        Authoritative Git mirror, published file reads, Brouillon worktrees
+  AnsibleUi.Adapters.Forge/      Forgejo/Gitea API: pull requests and commit checks
+  AnsibleUi.Adapters.MongoDB/    MongoDB Run and Brouillon persistence
   AnsibleUi.Adapters.Ssh/        Only SSH.NET transport implementation
   AnsibleUi.Sockets/             SignalR hub and realtime notifier
   AnsibleUi.Web/                 API, auth, composition root, static SPA hosting
@@ -46,6 +47,7 @@ front/
   src/core/auth/                 OIDC bridge and application auth context
   src/core/signalr/              Shared hub connection and realtime hooks
   src/view/                      Feature pages and shared UI components
+  src/view/editor/               Lazy Monaco editor, file tree, YAML schemas setup
 deploy/build/                    Single-container image and deployment scripts
 ```
 
@@ -137,7 +139,19 @@ Inventory behavior matters:
 - Preparation failures are `Failed` and append a safe `[ansible-ui]` message to output.
 - Persist each output chunk before realtime notification. REST detail remains recovery source after reconnect or late join.
 
-Do not introduce another execution path around `RunLauncher` or `RepositorySynchronizer`.
+Do not introduce another execution path around `RunLauncher` or `RepositorySynchronizer`. A Run de brouillon follows the same path: `RunLauncher` asks `DraftService` for a detached worktree of the frozen commit, then `RepositorySynchronizer.ExecutePlaybookAsync` runs it from that working directory under the usual repository lock, and the worktree is removed afterwards (stale ones at startup).
+
+### Brouillons
+
+`DraftService` is singleton owner of Brouillons (Mongo `drafts` collection plus Rebond worktrees):
+
+- Brouillons live in a bare clone at `Drafts:Root/repo.git` with worktrees under `drafts/<id>` and `runs/<runId>`. Never place them inside, or operate them from, the authoritative clone.
+- Operations touching refs or index of that clone (create, status, commit, push, rebase, fetch, remove, Run worktrees) are serialized by one lock. File reads and writes stay lock-free so autosave never waits behind Git.
+- Editing is limited to the Ansible directory. Validate every path with `RepositoryPath.Validate`; scripts also resolve symlinks and refuse anything outside it, symlinks as targets, and Ansible Vault files (read-only, never decrypted).
+- Writes carry the SHA-256 of the version they edit; a mismatch is 409, surfaced as an editor conflict. Content travels as base64 chunks below the 128 KiB shell argument limit.
+- Commits use the signed-in user as author and `Drafts:Committer*` as committer. Push never forces, except rebase with `--force-with-lease` after checking the remote branch holds no foreign commits. Rebase conflicts abort and leave resolution to the pull request.
+- First push opens the pull request through `IForge`. `DraftWatchService` fetches when the Révision distante moves and archives Brouillons whose pull request merged (branch deleted) or closed.
+- A Run de brouillon only executes a pushed commit with no pending edits. Only `Auth:EditorRole` holders reach `/api/drafts`; that role can run unreviewed code on every managed host.
 
 ### Realtime flow
 
@@ -147,6 +161,7 @@ SignalR hub is authenticated at `/hubs/runs`. Browser bearer token travels throu
 - `runOutput`: sent only to `run-{id}` group.
 - `repositoryStatusChanged`: broadcast synchronization and Run activity.
 - `repositoryChanged`: broadcast newly published repository revision.
+- `draftChanged`: broadcast Brouillon creation, push, rebase, and closure (not autosaves).
 - Hub RPCs `WatchRun` and `UnwatchRun` manage per-Run output groups.
 
 When changing event payloads, update backend notifier, frontend API types, query invalidation, and tests together.
@@ -154,6 +169,7 @@ When changing event payloads, update backend notifier, frontend API types, query
 ### Shell and secret safety
 
 - Treat every value embedded in a remote shell command as hostile. Use `PosixShell.Quote`; do not interpolate raw values.
+- The Rebond login shell may not be POSIX (fish reads `\'` inside single quotes). Only `SshRemoteCommandExecutor` wraps scripts, with `PosixShell.QuoteForLoginShell`; scripts themselves run under `sh`.
 - Host names must match `^[A-Za-z0-9._-]+$` before becoming paths or command arguments.
 - `Ansible:WorkingDirectory` must be an absolute POSIX path contained within `GitRepository:Path`.
 - Never return Ansible inventory hostvars or decrypted vault values.
@@ -173,7 +189,9 @@ When changing event payloads, update backend notifier, frontend API types, query
 - `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID` override `window.ansibleUi.config.oauth` for Aspire development.
 - `endpoints.core` defaults to same origin. Vite proxies `/api` and `/hubs`; production API serves built SPA from `wwwroot`.
 - Runtime config errors must fail visibly. Do not silently invent auth defaults.
-- Frontend `Run`, Inventory, and repository status types mirror backend JSON. Change both sides together.
+- Frontend `Run`, Inventory, repository status, Brouillon, and file types mirror backend JSON. Change both sides together.
+- Monaco loads lazily through `view/editor/LazyCodeEditor`; keep it out of the main chunk. It is bundled (no CDN). Ansible YAML schemas are fetched at runtime from a pinned ansible-lint commit because they are GPL-3.0; do not vendor them. `vite.config.ts` aliases monaco-yaml's deep `monaco-editor/esm/vs` imports and stubs unused TypeScript/CSS/HTML language services.
+- The Brouillon editor owns its buffer: autosave writes never refetch the open file (invalidate draft detail with `exact: true`), and leaving a file flushes pending edits.
 
 ## Configuration
 
@@ -183,7 +201,9 @@ Environment-specific values must stay out of source. Relevant sections:
 - `GitRepository`: `Path`, `Url`, `Branch`
 - `Ansible`: `WorkingDirectory`, `AcceptNewSshHostKeys`
 - `RepositorySynchronization`: `ProbeInterval`
-- `Auth`: required absolute HTTP(S) `Authority`, required `Audience`
+- `Drafts`: optional `Root` (default `<GitRepository:Path>.drafts`, must not overlap it), `CommitterName`, `CommitterEmail`
+- `Forge`: required absolute HTTP(S) `BaseUrl`, required secret `Token`; `Owner` and `Repository` default from `GitRepository:Url`
+- `Auth`: required absolute HTTP(S) `Authority`, required `Audience`, `EditorRole` (default `ansible-ui-editor`)
 - `Cors:AllowedOrigins`
 - `ConnectionStrings:MongoDB`
 
@@ -194,7 +214,7 @@ Frontend runtime config comes from `front/public/conf.js`, replaced during deplo
 ## Testing expectations
 
 - Backend tests use xUnit v3 on Microsoft Testing Platform with Shouldly assertions (`actual.ShouldBe(expected)`), not xUnit `Assert`. String `ShouldContain` is case-insensitive by default; pass `Case.Sensitive` when asserting generated scripts.
-- Core locking, degraded-state, snapshot, or fact-cache changes: extend `AnsibleUi.Core.Tests`.
+- Core locking, degraded-state, snapshot, fact-cache, or Brouillon lifecycle changes: extend `AnsibleUi.Core.Tests`.
 - Git/Ansible command or POSIX quoting changes: extend `AnsibleUi.Adapters.Tests` and assert generated scripts precisely.
 - Runtime frontend config changes: extend `front/src/config/runtime.test.ts`.
 - Auth startup or local sign-in changes: run explicit `AnsibleUi.E2E` tests when Docker and Chromium are available.

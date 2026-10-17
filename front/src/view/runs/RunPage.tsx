@@ -23,6 +23,7 @@ import { useRunStream } from "@/core/signalr/useRunStream";
 import { formatDateTime, formatDuration } from "@/core/format";
 import { fontMono } from "@/config/theme";
 import { StatusChip } from "@/view/components/StatusChip";
+import { DraftRunChip } from "@/view/drafts/DraftRunChip";
 import { Terminal } from "./Terminal";
 
 export function RunPage() {
@@ -117,6 +118,7 @@ export function RunPage() {
 						rowGap: 1.25,
 					}}
 				>
+					{run.draft && <DraftRunChip draft={run.draft} />}
 					{run.options.limit && (
 						<Chip
 							size="small"

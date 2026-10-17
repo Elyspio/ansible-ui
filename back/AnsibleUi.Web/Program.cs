@@ -2,6 +2,7 @@ using AnsibleUi.Adapters.MongoDB.Injections;
 using AnsibleUi.Adapters.Ssh.Injections;
 using AnsibleUi.Adapters.Git;
 using AnsibleUi.Adapters.Ansible;
+using AnsibleUi.Adapters.Forge;
 using AnsibleUi.Abstractions;
 using AnsibleUi.Core.Injections;
 using AnsibleUi.ServiceDefaults;
@@ -30,6 +31,18 @@ builder.Services.AddAnsibleUiAnsible(builder.Configuration);
 var repositoryPath = builder.Configuration.GetValue<string>($"{GitRepositoryOptions.SectionName}:Path") ?? "";
 builder.Services.AddOptions<AnsibleOptions>()
 	.Validate(options => PosixShell.IsContainedIn(options.WorkingDirectory, repositoryPath), "Ansible:WorkingDirectory must be inside GitRepository:Path");
+builder.Services.AddAnsibleUiForge(builder.Configuration);
+// Brouillons edit only the Ansible directory, and pull requests always target the reference branch.
+builder.Services.PostConfigure<DraftWorkspaceOptions>(options => options.AnsibleDirectory = RelativeAnsibleDirectory(
+	builder.Configuration.GetValue<string>($"{AnsibleOptions.SectionName}:WorkingDirectory") ?? "", repositoryPath));
+builder.Services.PostConfigure<ForgeOptions>(options =>
+{
+	var url = builder.Configuration.GetValue<string>($"{GitRepositoryOptions.SectionName}:Url") ?? "";
+	options.BaseBranch = builder.Configuration.GetValue<string>($"{GitRepositoryOptions.SectionName}:Branch") ?? "";
+	if (ForgeOptions.ParseRepository(url) is not { } repository) return;
+	if (string.IsNullOrWhiteSpace(options.Owner)) options.Owner = repository.Owner;
+	if (string.IsNullOrWhiteSpace(options.Repository)) options.Repository = repository.Repository;
+});
 builder.Services.AddAnsibleUiAuth(builder.Configuration);
 
 // Serialize enums (e.g. RunStatus) as their names, not ints, so REST payloads match the
@@ -69,3 +82,10 @@ app.MapDefaultEndpoints(); // /health, /alive
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+static string RelativeAnsibleDirectory(string workingDirectory, string repositoryPath)
+{
+	if (!PosixShell.IsContainedIn(workingDirectory, repositoryPath)) return "";
+	var root = PosixShell.NormalizeAbsolute(repositoryPath).TrimEnd('/');
+	return PosixShell.NormalizeAbsolute(workingDirectory)[root.Length..].TrimStart('/');
+}

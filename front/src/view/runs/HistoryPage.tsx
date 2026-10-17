@@ -7,6 +7,7 @@ import { fontMono } from "@/config/theme";
 import { StatusChip } from "@/view/components/StatusChip";
 import { RecapBadges } from "@/view/components/RecapBadges";
 import { EmptyState } from "@/view/components/EmptyState";
+import { DraftRunChip } from "@/view/drafts/DraftRunChip";
 
 export function HistoryPage() {
 	const navigate = useNavigate();
@@ -59,6 +60,7 @@ export function HistoryPage() {
 								>
 									{run.playbook}
 								</Typography>
+								{run.draft && <DraftRunChip draft={run.draft} link={false} />}
 								<Typography
 									variant="body2"
 									noWrap

@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace AnsibleUi.Abstractions;
 
 /// <summary>POSIX single-quote escaping for values embedded in shell scripts.</summary>
@@ -33,6 +35,26 @@ public static class PosixShell
 	public static string Quote(string value)
 	{
 		return $"'{value.Replace("'", "'\\''")}'";
+	}
+
+	/// <summary>
+	///     Quotes a script for whatever login shell sshd starts (sh, bash, zsh, fish). Fish reads
+	///     <c>\'</c> and <c>\\</c> as escapes even inside single quotes, so single quotes and backslashes
+	///     are emitted inside double quotes, where every one of those shells reads them identically.
+	/// </summary>
+	public static string QuoteForLoginShell(string value)
+	{
+		var quoted = new StringBuilder("'");
+		foreach (var character in value)
+		{
+			quoted.Append(character switch
+			{
+				'\'' => "'\"'\"'",
+				'\\' => "'\"\\\\\"'",
+				_ => character.ToString()
+			});
+		}
+		return quoted.Append('\'').ToString();
 	}
 
 	public static string Parent(string path)

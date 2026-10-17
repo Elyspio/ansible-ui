@@ -14,4 +14,11 @@ public sealed class PosixShellTests
 	{
 		PosixShell.IsContainedIn(path, "/srv/repository").ShouldBe(expected);
 	}
+
+	[Fact]
+	public void Login_shell_quoting_keeps_quotes_and_backslashes_out_of_single_quotes()
+	{
+		// fish reads \' and \ as escapes inside single quotes; sh, bash and zsh do not.
+		PosixShell.QuoteForLoginShell(@"echo 'a\' $HOME").ShouldBe("'echo '\"'\"'a'\"\\\\\"''\"'\"' $HOME'");
+	}
 }

@@ -15,18 +15,25 @@ import TerminalRoundedIcon from "@mui/icons-material/TerminalRounded";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import DnsRoundedIcon from "@mui/icons-material/DnsRounded";
+import FolderOpenRoundedIcon from "@mui/icons-material/FolderOpenRounded";
+import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { appVersion } from "@/config/runtime";
 import { fontMono, type Mode } from "@/config/theme";
 import { useAuth } from "@/core/auth/useAuth";
+import { useMe } from "@/core/api/queries";
 import { RepositoryStatusPanel } from "./RepositoryStatusPanel";
 
 const NAV = [
 	{ to: "/", label: "Playbooks", icon: <PlayArrowRoundedIcon /> },
 	{ to: "/runs", label: "History", icon: <HistoryRoundedIcon /> },
 	{ to: "/inventory", label: "Inventory", icon: <DnsRoundedIcon /> },
+	{ to: "/files", label: "Files", icon: <FolderOpenRoundedIcon /> },
 ];
+
+// Drafts run unreviewed code on managed hosts: shown only to editors.
+const EDITOR_NAV = [{ to: "/drafts", label: "Drafts", icon: <EditNoteRoundedIcon /> }];
 
 const SIDEBAR_WIDTH = 216;
 
@@ -40,6 +47,8 @@ export function Shell({
 	children: ReactNode;
 }) {
 	const { user } = useAuth();
+	const me = useMe();
+	const nav = me.data?.canEdit ? [...NAV, ...EDITOR_NAV] : NAV;
 	const { pathname } = useLocation();
 
 	return (
@@ -66,7 +75,7 @@ export function Shell({
 				</Box>
 
 				<List sx={{ px: 1.25, display: "grid", gap: 0.25 }}>
-					{NAV.map((item) => {
+					{nav.map((item) => {
 						const selected =
 							item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
 						return (

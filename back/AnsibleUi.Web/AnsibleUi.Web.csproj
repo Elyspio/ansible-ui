@@ -20,6 +20,7 @@
 		<ProjectReference Include="..\AnsibleUi.Adapters.Ssh\AnsibleUi.Adapters.Ssh.csproj"/>
 		<ProjectReference Include="..\AnsibleUi.Adapters.Git\AnsibleUi.Adapters.Git.csproj"/>
 		<ProjectReference Include="..\AnsibleUi.Adapters.Ansible\AnsibleUi.Adapters.Ansible.csproj"/>
+		<ProjectReference Include="..\AnsibleUi.Adapters.Forge\AnsibleUi.Adapters.Forge.csproj"/>
 		<ProjectReference Include="..\AnsibleUi.ServiceDefaults\AnsibleUi.ServiceDefaults.csproj"/>
 	</ItemGroup>
 

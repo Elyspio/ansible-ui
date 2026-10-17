@@ -77,7 +77,9 @@ export function PlaybooksPage() {
 	const theme = useTheme();
 	const navigate = useNavigate();
 	const { data, isPending, error, refetch, isFetching } = usePlaybooks();
-	const runs = useRuns();
+	const allRuns = useRuns();
+	// Runs de brouillon executed other code; the explorer reflects what main runs.
+	const runs = { ...allRuns, data: allRuns.data?.filter((run) => !run.draft) };
 	const repository = useRepositoryStatus();
 	const [selectedPath, setSelectedPath] = useState<string | null>(null);
 	const [launching, setLaunching] = useState<Playbook | null>(null);

@@ -4,6 +4,7 @@
 		<Project Path="AnsibleUi.Adapters.Ssh/AnsibleUi.Adapters.Ssh.csproj"/>
 		<Project Path="AnsibleUi.Adapters.Git/AnsibleUi.Adapters.Git.csproj"/>
 		<Project Path="AnsibleUi.Adapters.Ansible/AnsibleUi.Adapters.Ansible.csproj"/>
+		<Project Path="AnsibleUi.Adapters.Forge/AnsibleUi.Adapters.Forge.csproj"/>
 	</Folder>
 	<Folder Name="/Aspire/">
 		<Project Path="AnsibleUi.AppHost/AnsibleUi.AppHost.csproj"/>

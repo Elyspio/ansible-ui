@@ -12,6 +12,9 @@ public sealed class Run
 
 	public RunStatus Status { get; set; } = RunStatus.Queued;
 
+	/// <summary>Brouillon the Run executes; null for a Run of the Révision distante.</summary>
+	public DraftRunSource? Draft { get; init; }
+
 	/// <summary>User (claim "name") who submitted the run.</summary>
 	public required string RequestedBy { get; init; }
 
@@ -51,3 +54,6 @@ public enum RunStatus
 
 /// <summary>One host line of the PLAY RECAP.</summary>
 public sealed record HostRecap(string Host, int Ok, int Changed, int Unreachable, int Failed, int Skipped);
+
+/// <summary>Run de brouillon: the pushed Brouillon commit it executes, frozen at submission.</summary>
+public sealed record DraftRunSource(Guid DraftId, string Title, string Branch, string Revision, string? PullRequestUrl);

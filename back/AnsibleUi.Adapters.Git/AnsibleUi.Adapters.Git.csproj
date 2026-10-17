@@ -8,6 +8,10 @@
 		<ProjectReference Include="..\AnsibleUi.Abstractions\AnsibleUi.Abstractions.csproj"/>
 	</ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="AnsibleUi.Adapters.Tests"/>
+	</ItemGroup>
+
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>

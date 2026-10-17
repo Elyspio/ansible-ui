@@ -35,14 +35,16 @@ var api = builder.AddProject<AnsibleUi_Web>("api")
 
 if (isE2E)
 {
-	// History E2E tests do not call SSH, but startup validation still requires a complete control-node shape.
+	// History E2E tests do not call SSH or the forge, but startup validation still requires a complete Rebond shape.
 	api.WithEnvironment("SshConnection__Host", "localhost")
 		.WithEnvironment("SshConnection__User", "e2e")
 		.WithEnvironment("SshConnection__PrivateKeyPath", "e2e")
 		.WithEnvironment("GitRepository__Path", "/e2e")
 		.WithEnvironment("GitRepository__Url", "ssh://git@example.invalid/ansible.git")
 		.WithEnvironment("GitRepository__Branch", "main")
-		.WithEnvironment("Ansible__WorkingDirectory", "/e2e");
+		.WithEnvironment("Ansible__WorkingDirectory", "/e2e")
+		.WithEnvironment("Forge__BaseUrl", "https://example.invalid")
+		.WithEnvironment("Forge__Token", "e2e");
 }
 
 // Vite front (Vite+). In dev the Vite proxy routes /api and /hubs to the API.

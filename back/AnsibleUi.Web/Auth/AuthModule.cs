@@ -36,7 +36,9 @@ public static class AuthModule
 				};
 			});
 
-		services.AddAuthorization();
+		services.AddAuthorization(options => options.AddPolicy(AuthPolicies.Editor, policy =>
+			policy.RequireAuthenticatedUser().RequireAssertion(context =>
+				UserClaims.Roles(context.User, auth.Audience).Contains(auth.EditorRole))));
 		return services;
 	}
 
@@ -45,4 +47,10 @@ public static class AuthModule
 		return Uri.TryCreate(authority, UriKind.Absolute, out var uri) &&
 		       (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 	}
+}
+
+public static class AuthPolicies
+{
+	/// <summary>Brouillons: holders can run unreviewed code on every managed host.</summary>
+	public const string Editor = "editor";
 }
