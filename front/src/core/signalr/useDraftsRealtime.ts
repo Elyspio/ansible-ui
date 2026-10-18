@@ -16,6 +16,8 @@ export function useDraftsRealtime(): void {
 		const onDraftChanged = (draft: Draft) => {
 			void qc.invalidateQueries({ queryKey: qk.drafts, exact: true });
 			void qc.invalidateQueries({ queryKey: qk.draft(draft.id), exact: true });
+			// A closed Brouillon has no worktree left: its file endpoints answer 409.
+			if (draft.status !== "Open") return;
 			void qc.invalidateQueries({ queryKey: qk.draftFiles(draft.id) });
 			void qc.invalidateQueries({ queryKey: qk.draftPlaybooks(draft.id) });
 		};

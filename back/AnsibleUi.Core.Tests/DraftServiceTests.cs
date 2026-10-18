@@ -93,6 +93,26 @@ public sealed class DraftServiceTests
 	}
 
 	[Fact]
+	public async Task Abandon_keeps_its_status_when_the_watcher_sees_the_pull_request_it_closed()
+	{
+		var (service, _, workspace, forge) = Create();
+		var draft = await service.CreateAsync("Abandoned", User, TestContext.Current.CancellationToken);
+		draft.PullRequestNumber = 3;
+		Task? reconcile = null;
+		forge.OnClose = number =>
+		{
+			forge.States[number] = PullRequestState.Closed;
+			reconcile = service.ReconcileAsync(null, TestContext.Current.CancellationToken);
+		};
+
+		await service.AbandonAsync(draft.Id, TestContext.Current.CancellationToken);
+		await reconcile.ShouldNotBeNull();
+
+		draft.Status.ShouldBe(DraftStatus.Abandoned);
+		workspace.Removed.ShouldBe([(draft.Id, true)]);
+	}
+
+	[Fact]
 	public async Task Reconcile_fetches_once_per_new_remote_revision()
 	{
 		var (service, _, workspace, _) = Create();
@@ -206,7 +226,13 @@ public sealed class DraftServiceTests
 		}
 		public Task<PullRequest?> GetPullRequestAsync(int number, CancellationToken ct = default) =>
 			Task.FromResult<PullRequest?>(new PullRequest(number, "u", States.GetValueOrDefault(number, PullRequestState.Open)));
-		public Task ClosePullRequestAsync(int number, CancellationToken ct = default) => Task.CompletedTask;
+		public Action<int>? OnClose { get; set; }
+
+		public Task ClosePullRequestAsync(int number, CancellationToken ct = default)
+		{
+			OnClose?.Invoke(number);
+			return Task.CompletedTask;
+		}
 		public Task<CommitChecks> GetChecksAsync(string revision, CancellationToken ct = default) =>
 			Task.FromResult(new CommitChecks(CommitCheckState.None, null));
 	}

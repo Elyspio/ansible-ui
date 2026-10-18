@@ -192,7 +192,7 @@ importers:
         version: 10.0.11
       '@monaco-editor/react':
         specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.57.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        version: 4.7.0(monaco-editor@0.52.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/icons-material':
         specifier: ^9.4.0
         version: 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -206,11 +206,11 @@ importers:
         specifier: ^1.20.0
         version: 1.20.0(debug@4.4.3)
       monaco-editor:
-        specifier: ^0.57.0
-        version: 0.57.0
+        specifier: ^0.52.2
+        version: 0.52.2
       monaco-yaml:
         specifier: ^5.5.1
-        version: 5.5.1(monaco-editor@0.57.0)
+        version: 5.5.1(monaco-editor@0.52.2)
       notistack:
         specifier: ^3.0.2
         version: 3.0.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -831,9 +831,6 @@ packages:
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
-  '@types/trusted-types@2.0.7':
-    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
-
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
     engines: {node: '>=16.20.0'}
@@ -1355,9 +1352,6 @@ packages:
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
 
-  dompurify@3.4.15:
-    resolution: {integrity: sha512-EUBjM+B+lkDE41iE82DDSCfkoPGfXx8IxFxPMjNzm/Uk4xDet77rTN9wqlxlVg71kK7XGuUMv6wUxJUwwv+Xyw==}
-
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
@@ -1598,11 +1592,6 @@ packages:
   magic-string@1.4.1:
     resolution: {integrity: sha512-8lyCu36ErXR0J9uaGKlKQoiLZKmtI63YGLE8G2o9jyRPdr4X47LusSOwgOJOzcVtp81fTAAjxR7BwKz682Jhow==}
 
-  marked@14.0.0:
-    resolution: {integrity: sha512-uIj4+faQ+MgHgwUW1l2PsPglZLOLOT1uErt06dAPtx2kjteLAkbsd/0FiYg/MGS+i7ZKLb7w2WClxHkzOOuryQ==}
-    engines: {node: '>= 18'}
-    hasBin: true
-
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -1615,8 +1604,8 @@ packages:
     resolution: {integrity: sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==}
     engines: {node: '>= 0.6'}
 
-  monaco-editor@0.57.0:
-    resolution: {integrity: sha512-5BkI9KGoqrNvBGUe15/QlZq3OooZ8WLg1AxTpaqHRCP3HNpzPPZKE2EDz8M7c+VRmCeUw1Brp4cx/PWm3kI/5A==}
+  monaco-editor@0.52.2:
+    resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
 
   monaco-languageserver-types@0.4.1:
     resolution: {integrity: sha512-uLiYM6K6jPqAa1ni9lRBoj8ZJAErOcegBrfEpurIUUO8cBhlhrGYjWbjhl4OPcxUNoj1JvqSETjwCTyhGgwymQ==}
@@ -2214,10 +2203,10 @@ snapshots:
     dependencies:
       state-local: 1.0.7
 
-  '@monaco-editor/react@4.7.0(monaco-editor@0.57.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@monaco-editor/react@4.7.0(monaco-editor@0.52.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@monaco-editor/loader': 1.7.0
-      monaco-editor: 0.57.0
+      monaco-editor: 0.52.2
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
@@ -2506,9 +2495,6 @@ snapshots:
   '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
-
-  '@types/trusted-types@2.0.7':
-    optional: true
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -2853,10 +2839,6 @@ snapshots:
       '@babel/runtime': 7.29.7
       csstype: 3.2.3
 
-  dompurify@3.4.15:
-    optionalDependencies:
-      '@types/trusted-types': 2.0.7
-
   dunder-proto@1.0.1:
     dependencies:
       call-bind-apply-helpers: 1.0.2
@@ -3055,8 +3037,6 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  marked@14.0.0: {}
-
   math-intrinsics@1.1.0: {}
 
   mime-db@1.52.0: {}
@@ -3065,10 +3045,7 @@ snapshots:
     dependencies:
       mime-db: 1.52.0
 
-  monaco-editor@0.57.0:
-    dependencies:
-      dompurify: 3.4.15
-      marked: 14.0.0
+  monaco-editor@0.52.2: {}
 
   monaco-languageserver-types@0.4.1:
     dependencies:
@@ -3082,19 +3059,19 @@ snapshots:
 
   monaco-types@0.1.2: {}
 
-  monaco-worker-manager@2.0.1(monaco-editor@0.57.0):
+  monaco-worker-manager@2.0.1(monaco-editor@0.52.2):
     dependencies:
-      monaco-editor: 0.57.0
+      monaco-editor: 0.52.2
 
-  monaco-yaml@5.5.1(monaco-editor@0.57.0):
+  monaco-yaml@5.5.1(monaco-editor@0.52.2):
     dependencies:
       '@vscode/l10n': 0.0.18
       jsonc-parser: 3.3.1
-      monaco-editor: 0.57.0
+      monaco-editor: 0.52.2
       monaco-languageserver-types: 0.4.1
       monaco-marker-data-provider: 1.2.5
       monaco-types: 0.1.2
-      monaco-worker-manager: 2.0.1(monaco-editor@0.57.0)
+      monaco-worker-manager: 2.0.1(monaco-editor@0.52.2)
       path-browserify: 1.0.1
       prettier: 3.9.10
       proxy-disposable: 1.0.0

@@ -141,15 +141,16 @@ public sealed class DraftService(
 	/// <summary>Closes the pull request, deletes the branch and the worktree; the record stays for history.</summary>
 	public async Task<Draft> AbandonAsync(Guid id, CancellationToken ct = default)
 	{
-		var draft = await RequireOpenAsync(id, ct);
-		if (draft.PullRequestNumber is { } number) await forge.ClosePullRequestAsync(number, ct);
-		await LockedAsync(async () =>
+		// Under the lock end to end: the watcher must not see the pull request closed by this call
+		// and archive the Brouillon as Closed in between.
+		return await LockedAsync(async () =>
 		{
+			var draft = await RequireOpenAsync(id, ct);
+			if (draft.PullRequestNumber is { } number) await forge.ClosePullRequestAsync(number, ct);
 			await workspace.RemoveAsync(draft.Id, draft.Branch, deleteRemoteBranch: true, ct);
-			return 0;
+			await CloseAsync(draft, DraftStatus.Abandoned, ct);
+			return draft;
 		}, ct);
-		await CloseAsync(draft, DraftStatus.Abandoned, ct);
-		return draft;
 	}
 
 	public async Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(Guid id, CancellationToken ct = default)
@@ -226,12 +227,15 @@ public sealed class DraftService(
 		if (pull is null || pull.State == PullRequestState.Open) return;
 
 		var merged = pull.State == PullRequestState.Merged;
-		await LockedAsync(async () =>
+		var archived = await LockedAsync(async () =>
 		{
+			// Abandoned meanwhile (it closes its own pull request): keep that status.
+			if ((await drafts.GetAsync(draft.Id, ct))?.Status != DraftStatus.Open) return false;
 			await workspace.RemoveAsync(draft.Id, draft.Branch, deleteRemoteBranch: merged, ct);
-			return 0;
+			await CloseAsync(draft, merged ? DraftStatus.Merged : DraftStatus.Closed, ct);
+			return true;
 		}, ct);
-		await CloseAsync(draft, merged ? DraftStatus.Merged : DraftStatus.Closed, ct);
+		if (!archived) return;
 		logger.LogInformation("Brouillon {DraftId} archived: pull request #{Number} {State}", draft.Id, number, pull.State);
 	}
 

@@ -8,21 +8,9 @@ const API_TARGET = process.env.VITE_API_TARGET ?? "https://localhost:7193";
 export default defineConfig({
 	plugins: [react()],
 	resolve: {
-		alias: [
-			{ find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
-			// monaco-yaml's worker manager imports "monaco-editor/esm/vs/…", a path the
-			// monaco-editor 0.57 exports map no longer exposes; point it at the files directly.
-			{
-				find: /^monaco-editor\/esm\/vs\/(.*)$/,
-				replacement: `${fileURLToPath(new URL("./node_modules/monaco-editor/esm/vs/", import.meta.url))}$1`,
-			},
-			{
-				find: /^.*\/languages\/features\/(typescript|css|html)\/register\.js$/,
-				replacement: fileURLToPath(
-					new URL("./src/view/editor/monaco-unused-language.ts", import.meta.url),
-				),
-			},
-		],
+		alias: {
+			"@": fileURLToPath(new URL("./src", import.meta.url)),
+		},
 	},
 	server: {
 		port: 5173,

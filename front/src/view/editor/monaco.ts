@@ -1,9 +1,9 @@
 import * as monaco from "monaco-editor";
 import { loader } from "@monaco-editor/react";
 import { configureMonacoYaml } from "monaco-yaml";
-import EditorWorker from "monaco-editor/editor/editor.worker.js?worker";
-import JsonWorker from "monaco-editor/language/json/json.worker.js?worker";
-import YamlWorker from "./yaml.worker.ts?worker";
+import EditorWorker from "./workers.editor.ts?worker";
+import JsonWorker from "./workers.json.ts?worker";
+import YamlWorker from "./workers.yaml.ts?worker";
 import { terminal } from "@/config/theme";
 
 // Bundled Monaco instead of @monaco-editor/react's CDN default: no third-party script at runtime.

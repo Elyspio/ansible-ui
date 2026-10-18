@@ -99,7 +99,7 @@ dotnet run --project AnsibleUi.AppHost
 ```
 
 Aspire starts MongoDB, local Keycloak, the API and the Vite dev server (front on
-http://localhost:5173). Sign in with `dev` / `dev`. Standalone `pnpm dev` does not provide
+http://localhost:5173). Sign in with `user` / `password`. Standalone `pnpm dev` does not provide
 an authenticated application.
 
 Run Docker-backed Keycloak browser tests separately after installing Playwright Chromium:

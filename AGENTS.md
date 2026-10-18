@@ -63,7 +63,7 @@ Start complete local stack from `root/`:
 aspire run
 ```
 
-Aspire starts MongoDB, Keycloak, API, and Vite. Frontend is fixed at `http://localhost:5173`; Keycloak is fixed at `http://localhost:8080`. Local realm, client, and `dev` / `dev` user come from `back/AnsibleUi.AppHost/Realms/ansible-ui-realm.json`. Standalone `pnpm dev` proxies API and hubs but does not start authenticated backend services.
+Aspire starts MongoDB, Keycloak, API, and Vite. Frontend is fixed at `http://localhost:5173`; Keycloak is fixed at `http://localhost:8080`. Local realm, client, and `user` / `password` user come from `back/AnsibleUi.AppHost/Realms/ansible-ui-realm.json`. Standalone `pnpm dev` proxies API and hubs but does not start authenticated backend services.
 
 AppHost injects MongoDB and OIDC settings, but normal development still needs valid Rebond, Git, and Ansible settings in `back/AnsibleUi.Web/appsettings.Local.json` or another configuration provider. E2E mode injects dummy values because its browser test does not call SSH.
 
@@ -190,7 +190,7 @@ When changing event payloads, update backend notifier, frontend API types, query
 - `endpoints.core` defaults to same origin. Vite proxies `/api` and `/hubs`; production API serves built SPA from `wwwroot`.
 - Runtime config errors must fail visibly. Do not silently invent auth defaults.
 - Frontend `Run`, Inventory, repository status, Brouillon, and file types mirror backend JSON. Change both sides together.
-- Monaco loads lazily through `view/editor/LazyCodeEditor`; keep it out of the main chunk. It is bundled (no CDN). Ansible YAML schemas are fetched at runtime from a pinned ansible-lint commit because they are GPL-3.0; do not vendor them. `vite.config.ts` aliases monaco-yaml's deep `monaco-editor/esm/vs` imports and stubs unused TypeScript/CSS/HTML language services.
+- Monaco loads lazily through `view/editor/LazyCodeEditor`; keep it out of the main chunk. It is bundled (no CDN). Ansible YAML schemas are fetched at runtime from a pinned ansible-lint commit because they are GPL-3.0; do not vendor them. `monaco-editor` stays pinned to `~0.52.2`: monaco-yaml's worker manager breaks on the 0.53+ `createWebWorker` API. Workers load through local re-export entries (`workers.*.ts?worker`) because Vite's dep optimizer breaks `?worker` imports of `node_modules` paths.
 - The Brouillon editor owns its buffer: autosave writes never refetch the open file (invalidate draft detail with `exact: true`), and leaving a file flushes pending edits.
 
 ## Configuration

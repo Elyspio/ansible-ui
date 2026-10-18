@@ -49,7 +49,7 @@ export function useCreateDraft() {
 	return useMutation({
 		mutationFn: async (title: string) =>
 			(await http.post<Draft>("/api/drafts", { title })).data,
-		onSuccess: () => void qc.invalidateQueries({ queryKey: qk.drafts }),
+		onSuccess: () => void qc.invalidateQueries({ queryKey: qk.drafts, exact: true }),
 	});
 }
 
@@ -109,7 +109,7 @@ function useDraftAction<T>(
 		mutationFn: async (request: T) =>
 			(await http.post<Draft>(`/api/drafts/${draftId}/${action}`, toBody(request))).data,
 		onSuccess: () => {
-			void qc.invalidateQueries({ queryKey: qk.drafts });
+			void qc.invalidateQueries({ queryKey: qk.drafts, exact: true });
 			// A rebase rewrites files: refresh everything under this Brouillon, open files included.
 			void qc.invalidateQueries({ queryKey: qk.draft(draftId), exact: !rewritesFiles });
 		},
