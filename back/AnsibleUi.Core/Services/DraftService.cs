@@ -139,6 +139,25 @@ public sealed class DraftService(
 		return draft;
 	}
 
+	/// <summary>Squashes the reviewed pushed commit through the forge, then archives its Brouillon.</summary>
+	public async Task<Draft> SquashAsync(Guid id, string expectedRevision, CancellationToken ct = default)
+	{
+		expectedRevision = RequireText(expectedRevision, 64, "The pushed commit is required");
+		return await LockedAsync(async () =>
+		{
+			var draft = await RequireOpenAsync(id, ct);
+			if (draft.PullRequestNumber is not { } number)
+				throw HttpException.Conflict("Commit and push the Brouillon to open its pull request before merging");
+			var status = await workspace.GetStatusAsync(draft.Id, draft.Branch, ct);
+			if (status.HasUncommittedChanges || status.PushedRevision != expectedRevision || status.HeadRevision != expectedRevision)
+				throw HttpException.Conflict("Commit and push every change, then reload the Brouillon before merging");
+			await forge.SquashPullRequestAsync(number, draft.Branch, expectedRevision, ct);
+			await workspace.RemoveAsync(draft.Id, draft.Branch, deleteRemoteBranch: true, ct);
+			await CloseAsync(draft, DraftStatus.Merged, ct);
+			return draft;
+		}, ct);
+	}
+
 	/// <summary>Closes the pull request, deletes the branch and the worktree; the record stays for history.</summary>
 	public async Task<Draft> AbandonAsync(Guid id, CancellationToken ct = default)
 	{

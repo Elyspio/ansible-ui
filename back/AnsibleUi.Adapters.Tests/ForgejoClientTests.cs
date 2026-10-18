@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
+using AnsibleUi.Abstractions.Exceptions;
 using AnsibleUi.Abstractions.Models;
 using AnsibleUi.Adapters.Forge;
 using Microsoft.Extensions.Options;
@@ -55,6 +57,69 @@ public sealed class ForgejoClientTests
 
 	private static ForgejoClient Create(FakeHandler handler) => new(new FakeFactory(handler),
 		Options.Create(new ForgeOptions { BaseUrl = "https://git.example", Token = "t", Owner = "team", Repository = "ansible", BaseBranch = "main" }));
+
+	[Fact]
+	public async Task Squash_pins_the_head_commit_and_does_not_bypass_protections_or_queue_a_merge()
+	{
+		var handler = new FakeHandler(request => request.Method == HttpMethod.Get
+			? Json("""{"number":7,"state":"open","merged":false,"head":{"ref":"ansible-ui/dev/fix","sha":"abc"},"base":{"ref":"main"}}""")
+			: new HttpResponseMessage(HttpStatusCode.OK));
+
+		await Create(handler).SquashPullRequestAsync(7, "ansible-ui/dev/fix", "abc", TestContext.Current.CancellationToken);
+
+		handler.Requests.Count.ShouldBe(2);
+		var request = handler.Requests[1];
+		request.Method.ShouldBe(HttpMethod.Post);
+		request.RequestUri!.AbsolutePath.ShouldBe("/api/v1/repos/team/ansible/pulls/7/merge");
+		using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		body.RootElement.GetProperty("Do").GetString().ShouldBe("squash");
+		body.RootElement.GetProperty("head_commit_id").GetString().ShouldBe("abc");
+		body.RootElement.GetProperty("force_merge").GetBoolean().ShouldBeFalse();
+		body.RootElement.GetProperty("merge_when_checks_succeed").GetBoolean().ShouldBeFalse();
+		body.RootElement.GetProperty("delete_branch_after_merge").GetBoolean().ShouldBeFalse();
+	}
+
+	[Theory]
+	[InlineData("different-branch", "main", "abc", "open")]
+	[InlineData("ansible-ui/dev/fix", "different-target", "abc", "open")]
+	[InlineData("ansible-ui/dev/fix", "main", "different-commit", "open")]
+	[InlineData("ansible-ui/dev/fix", "main", "abc", "closed")]
+	public async Task Squash_refuses_a_changed_pull_request(string branch, string target, string revision, string state)
+	{
+		var handler = new FakeHandler(_ => Json(JsonSerializer.Serialize(new
+		{
+			number = 7, state, merged = false, head = new { @ref = branch, sha = revision }, @base = new { @ref = target }
+		})));
+
+		var error = await Should.ThrowAsync<HttpException>(() => Create(handler).SquashPullRequestAsync(7, "ansible-ui/dev/fix", "abc", TestContext.Current.CancellationToken));
+
+		error.StatusCode.ShouldBe(409);
+		handler.Requests.ShouldHaveSingleItem();
+	}
+
+	[Theory]
+	[InlineData(HttpStatusCode.Conflict)]
+	[InlineData(HttpStatusCode.MethodNotAllowed)]
+	public async Task Squash_surfaces_forge_merge_refusals(HttpStatusCode status)
+	{
+		var handler = new FakeHandler(request => request.Method == HttpMethod.Get
+			? Json("""{"number":7,"state":"open","merged":false,"head":{"ref":"ansible-ui/dev/fix","sha":"abc"},"base":{"ref":"main"}}""")
+			: new HttpResponseMessage(status));
+
+		var error = await Should.ThrowAsync<HttpException>(() => Create(handler).SquashPullRequestAsync(7, "ansible-ui/dev/fix", "abc", TestContext.Current.CancellationToken));
+
+		error.StatusCode.ShouldBe(409);
+	}
+
+	[Fact]
+	public async Task Squash_retry_accepts_a_previously_merged_expected_commit_without_merging_again()
+	{
+		var handler = new FakeHandler(_ => Json("""{"number":7,"state":"closed","merged":true,"head":{"ref":"ansible-ui/dev/fix","sha":"abc"},"base":{"ref":"main"}}"""));
+
+		await Create(handler).SquashPullRequestAsync(7, "ansible-ui/dev/fix", "abc", TestContext.Current.CancellationToken);
+
+		handler.Requests.ShouldHaveSingleItem().Method.ShouldBe(HttpMethod.Get);
+	}
 
 	private static HttpResponseMessage Json(string body) =>
 		new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };

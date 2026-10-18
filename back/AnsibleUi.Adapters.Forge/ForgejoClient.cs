@@ -67,6 +67,25 @@ public sealed class ForgejoClient(IHttpClientFactory clients, IOptions<ForgeOpti
 		return new CommitChecks(state, string.IsNullOrWhiteSpace(target) ? null : target);
 	}
 
+	public async Task SquashPullRequestAsync(int number, string branch, string expectedRevision, CancellationToken ct = default)
+	{
+		using var pullResponse = await Http.GetAsync($"{Repo}/pulls/{number}", ct);
+		await EnsureSuccessAsync(pullResponse, $"read pull request #{number}", ct);
+		var pull = (await pullResponse.Content.ReadFromJsonAsync<PullRequestDto>(ct))!;
+		if (pull.Head?.Ref != branch || pull.Base?.Ref != _options.BaseBranch || pull.Head.Sha != expectedRevision)
+			throw HttpException.Conflict("The pull request branch, target or commit changed. Reload the Brouillon before merging");
+		// A successful merge followed by a cleanup failure can be retried safely.
+		if (pull.Merged) return;
+		if (pull.State != "open") throw HttpException.Conflict("The pull request is no longer open");
+
+		// DraftService removes the branch and worktree after the merge succeeds.
+		using var response = await Http.PostAsJsonAsync($"{Repo}/pulls/{number}/merge",
+			new SquashPullRequest("squash", expectedRevision, false, false, false), ct);
+		if (response.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.MethodNotAllowed)
+			throw HttpException.Conflict("The forge could not merge this pull request. Check its conflicts, reviews and required checks");
+		await EnsureSuccessAsync(response, $"squash pull request #{number}", ct);
+	}
+
 	private async Task<PullRequest?> FindOpenAsync(string branch, CancellationToken ct)
 	{
 		const int pageSize = 50;
@@ -99,6 +118,13 @@ public sealed class ForgejoClient(IHttpClientFactory clients, IOptions<ForgeOpti
 		[property: JsonPropertyName("title")] string Title,
 		[property: JsonPropertyName("body")] string Body);
 
+	private sealed record SquashPullRequest(
+		[property: JsonPropertyName("Do")] string Method,
+		[property: JsonPropertyName("head_commit_id")] string HeadCommitId,
+		[property: JsonPropertyName("force_merge")] bool ForceMerge,
+		[property: JsonPropertyName("merge_when_checks_succeed")] bool MergeWhenChecksSucceed,
+		[property: JsonPropertyName("delete_branch_after_merge")] bool DeleteBranchAfterMerge);
+
 	private sealed record PullRequestDto(
 		[property: JsonPropertyName("number")] int Number,
 		[property: JsonPropertyName("html_url")] string HtmlUrl,
@@ -107,7 +133,9 @@ public sealed class ForgejoClient(IHttpClientFactory clients, IOptions<ForgeOpti
 		[property: JsonPropertyName("head")] BranchDto? Head,
 		[property: JsonPropertyName("base")] BranchDto? Base);
 
-	private sealed record BranchDto([property: JsonPropertyName("ref")] string Ref);
+	private sealed record BranchDto(
+		[property: JsonPropertyName("ref")] string Ref,
+		[property: JsonPropertyName("sha")] string? Sha);
 
 	private sealed record CombinedStatusDto(
 		[property: JsonPropertyName("state")] string? State,

@@ -129,6 +129,10 @@ export function useAbandonDraft(draftId: string) {
 	return useDraftAction(draftId, "abandon", () => undefined);
 }
 
+export function useSquashDraft(draftId: string) {
+	return useDraftAction(draftId, "squash", (expectedRevision: string) => ({ expectedRevision }));
+}
+
 export function useSubmitDraftRun(draftId: string) {
 	const qc = useQueryClient();
 	return useMutation({

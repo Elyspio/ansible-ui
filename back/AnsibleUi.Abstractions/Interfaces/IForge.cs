@@ -10,5 +10,7 @@ public interface IForge
 
 	Task<PullRequest?> GetPullRequestAsync(int number, CancellationToken ct = default);
 	Task ClosePullRequestAsync(int number, CancellationToken ct = default);
+	/// <summary>Squashes the expected Brouillon commit into the configured reference branch, respecting forge protections.</summary>
+	Task SquashPullRequestAsync(int number, string branch, string expectedRevision, CancellationToken ct = default);
 	Task<CommitChecks> GetChecksAsync(string revision, CancellationToken ct = default);
 }

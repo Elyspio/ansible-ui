@@ -30,6 +30,7 @@ import DnsRoundedIcon from "@mui/icons-material/DnsRounded";
 import DriveFileRenameOutlineRoundedIcon from "@mui/icons-material/DriveFileRenameOutlineRounded";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
+import MergeTypeRoundedIcon from "@mui/icons-material/MergeTypeRounded";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import SyncRoundedIcon from "@mui/icons-material/SyncRounded";
@@ -41,6 +42,7 @@ import {
 	useCommitDraft,
 	useDeleteDraftFile,
 	useRebaseDraft,
+	useSquashDraft,
 	useRenameDraftFile,
 	useValidateDraftInventory,
 	useWriteDraftFile,
@@ -92,7 +94,16 @@ const checkLabels: Record<CommitChecks["state"], string> = {
 /** Branches are ansible-ui/<user>/<slug>: the status bar shows the slug, the tooltip the rest. */
 const shortBranch = (branch: string) => branch.split("/").slice(2).join("/") || branch;
 
-type Dialog = "run" | "rebase" | "abandon" | "create" | "rename" | "delete" | "addHost" | null;
+type Dialog =
+	| "run"
+	| "rebase"
+	| "abandon"
+	| "create"
+	| "rename"
+	| "delete"
+	| "addHost"
+	| "squash"
+	| null;
 
 /** Open tabs survive reloads within the browser tab, per Brouillon. */
 function useOpenTabs(draftId: string, selected: string | null) {
@@ -232,6 +243,7 @@ function DraftWorkspace({ id }: { id: string }) {
 	const commit = useCommitDraft(id);
 	const rebase = useRebaseDraft(id);
 	const abandon = useAbandonDraft(id);
+	const squash = useSquashDraft(id);
 	const createFile = useWriteDraftFile(id);
 	const renameFile = useRenameDraftFile(id);
 	const deleteFile = useDeleteDraftFile(id);
@@ -240,6 +252,7 @@ function DraftWorkspace({ id }: { id: string }) {
 	const [tabs, setTabs] = useOpenTabs(id, selected);
 	const [dialog, setDialog] = useState<Dialog>(null);
 	const [composing, setComposing] = useState(false);
+	const [squashRevision, setSquashRevision] = useState<string | null>(null);
 	const [menu, setMenu] = useState<HTMLElement | null>(null);
 	const [saveState, setSaveState] = useState<SaveState>("saved");
 	const [cursor, setCursor] = useState<EditorCursor | null>(null);
@@ -346,6 +359,13 @@ function DraftWorkspace({ id }: { id: string }) {
 	const blocked = saveState === "conflict" || saveState === "failed";
 	const nothingToPush = upToDate && !!draft?.pullRequestNumber;
 	const runnable = upToDate && !!pushed && !busy && !blocked;
+	const squashable =
+		runnable &&
+		!!draft?.pullRequestNumber &&
+		!commit.isPending &&
+		!rebase.isPending &&
+		!abandon.isPending &&
+		!squash.isPending;
 
 	const header = (
 		<WorkbenchHeader
@@ -414,6 +434,31 @@ function DraftWorkspace({ id }: { id: string }) {
 						>
 							Commit & push
 						</Button>
+						{draft?.pullRequestNumber && (
+							<Tooltip
+								title={
+									squashable
+										? "Squash this pull request into main"
+										: "Commit and push every change before merging"
+								}
+							>
+								<span>
+									<Button
+										variant="outlined"
+										color="success"
+										startIcon={<MergeTypeRoundedIcon />}
+										disabled={!squashable}
+										loading={squash.isPending}
+										onClick={() => {
+											setSquashRevision(pushed);
+											setDialog("squash");
+										}}
+									>
+										Squash to main
+									</Button>
+								</span>
+							</Tooltip>
+						)}
 						<IconButton
 							aria-label="More actions"
 							size="small"
@@ -721,6 +766,33 @@ function DraftWorkspace({ id }: { id: string }) {
 
 			{draft && workspace && (
 				<>
+					<ConfirmDialog
+						open={dialog === "squash"}
+						title="Squash pull request to main"
+						action="Squash to main"
+						busy={squash.isPending}
+						onClose={() => !squash.isPending && setDialog(null)}
+						onConfirm={() => {
+							if (!squashRevision || squash.isPending) return;
+							void flushThen(() =>
+								squash.mutate(squashRevision, {
+									onSuccess: () => {
+										setDialog(null);
+										enqueueSnackbar(
+											`Pull request #${draft.pullRequestNumber} squashed into main`,
+											{ variant: "success" },
+										);
+									},
+									onError: fail("Could not squash the pull request"),
+								}),
+							);
+						}}
+					>
+						Squash pull request #{draft.pullRequestNumber} at{" "}
+						{squashRevision?.slice(0, 8)} into one commit on main. The draft will be
+						archived and its branch deleted. The forge's required checks and reviews
+						still apply.
+					</ConfirmDialog>
 					{pushed && (
 						<DraftLaunchDialog
 							draft={draft}

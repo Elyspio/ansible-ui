@@ -93,6 +93,56 @@ public sealed class DraftServiceTests
 	}
 
 	[Fact]
+	public async Task Squash_merges_the_expected_pushed_commit_and_archives_the_draft()
+	{
+		var (service, _, workspace, forge) = Create();
+		var draft = await service.CreateAsync("Fix", User, TestContext.Current.CancellationToken);
+		draft.PullRequestNumber = 7;
+		workspace.Status = Status(uncommitted: false, pushed: Head);
+
+		var merged = await service.SquashAsync(draft.Id, Head, TestContext.Current.CancellationToken);
+
+		forge.Squashed.ShouldBe([(7, draft.Branch, Head)]);
+		merged.Status.ShouldBe(DraftStatus.Merged);
+		merged.ClosedAt.ShouldNotBeNull();
+		workspace.Removed.ShouldBe([(draft.Id, true)]);
+	}
+
+	[Theory]
+	[InlineData(true, true, false)]
+	[InlineData(false, true, true)]
+	[InlineData(false, false, false)]
+	public async Task Squash_refuses_pending_edits_stale_commits_or_missing_pull_requests(bool dirty, bool hasPull, bool stale)
+	{
+		var (service, _, workspace, forge) = Create();
+		var draft = await service.CreateAsync("Fix", User, TestContext.Current.CancellationToken);
+		draft.PullRequestNumber = hasPull ? 7 : null;
+		workspace.Status = Status(dirty, Head);
+
+		var error = await Should.ThrowAsync<HttpException>(() => service.SquashAsync(draft.Id, stale ? new string('2', 40) : Head, TestContext.Current.CancellationToken));
+
+		error.StatusCode.ShouldBe(409);
+		forge.Squashed.ShouldBeEmpty();
+		workspace.Removed.ShouldBeEmpty();
+		draft.Status.ShouldBe(DraftStatus.Open);
+	}
+
+	[Fact]
+	public async Task Squash_leaves_the_draft_open_when_the_forge_refuses_to_merge()
+	{
+		var (service, _, workspace, forge) = Create();
+		var draft = await service.CreateAsync("Fix", User, TestContext.Current.CancellationToken);
+		draft.PullRequestNumber = 7;
+		workspace.Status = Status(uncommitted: false, pushed: Head);
+		forge.FailSquash = true;
+
+		await Should.ThrowAsync<HttpException>(() => service.SquashAsync(draft.Id, Head, TestContext.Current.CancellationToken));
+
+		draft.Status.ShouldBe(DraftStatus.Open);
+		workspace.Removed.ShouldBeEmpty();
+	}
+
+	[Fact]
 	public async Task Abandon_keeps_its_status_when_the_watcher_sees_the_pull_request_it_closed()
 	{
 		var (service, _, workspace, forge) = Create();
@@ -231,6 +281,8 @@ public sealed class DraftServiceTests
 	{
 		public int Opened { get; private set; }
 		public bool FailOpen { get; set; }
+		public bool FailSquash { get; set; }
+		public List<(int Number, string Branch, string Revision)> Squashed { get; } = [];
 		public Dictionary<int, PullRequestState> States { get; } = [];
 
 		public Task<PullRequest> OpenPullRequestAsync(string branch, string title, string body, CancellationToken ct = default)
@@ -246,6 +298,13 @@ public sealed class DraftServiceTests
 		public Task ClosePullRequestAsync(int number, CancellationToken ct = default)
 		{
 			OnClose?.Invoke(number);
+			return Task.CompletedTask;
+		}
+		public Task SquashPullRequestAsync(int number, string branch, string expectedRevision, CancellationToken ct = default)
+		{
+			if (FailSquash) throw HttpException.Conflict("Checks failed");
+			Squashed.Add((number, branch, expectedRevision));
+			States[number] = PullRequestState.Merged;
 			return Task.CompletedTask;
 		}
 		public Task<CommitChecks> GetChecksAsync(string revision, CancellationToken ct = default) =>

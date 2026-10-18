@@ -9,6 +9,8 @@ Web UI to launch and track Ansible playbook runs on a remote Rebond, over SSH.
 - **Browse** the Dépôt Ansible files at the Révision distante (read-only, Monaco editor).
 - **Edit** them in a Brouillon ("draft"): autosaved to its own Git branch, pushed as a pull
   request on Forgejo/Gitea, and runnable on its pushed commit before merge (editor role only).
+  Once every change is pushed, **Squash to main** merges that exact commit through the forge,
+  respecting required checks/reviews, then archives the Brouillon and deletes its branch.
 - **Add hosts** from Inventory or a Brouillon: choose groups, optional connection address and
   host vars, review the YAML diff, then validate with Ansible on the Rebond. Comments and file
   order stay intact. Inventory also opens host vars in a new or existing Brouillon.

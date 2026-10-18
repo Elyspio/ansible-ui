@@ -96,6 +96,12 @@ public sealed class DraftsController(DraftService drafts, RunLauncher launcher) 
 		return Ok(await drafts.AbandonAsync(id, ct));
 	}
 
+	[HttpPost("{id:guid}/squash")]
+	public async Task<IActionResult> Squash(Guid id, SquashRequest request, CancellationToken ct)
+	{
+		return Ok(await drafts.SquashAsync(id, request.ExpectedRevision, ct));
+	}
+
 	[HttpGet("{id:guid}/playbooks")]
 	public async Task<IActionResult> ListPlaybooks(Guid id, CancellationToken ct)
 	{
@@ -123,4 +129,6 @@ public sealed class DraftsController(DraftService drafts, RunLauncher launcher) 
 	public sealed record RenameFileRequest(string Path, string NewPath);
 
 	public sealed record CommitRequest(string Message);
+
+	public sealed record SquashRequest(string ExpectedRevision);
 }
