@@ -5,7 +5,18 @@ Web UI to launch and track Ansible playbook runs on a remote Rebond, over SSH.
 - **Launch** a playbook with `--limit` (picked from your inventory), `--check` and `--diff`.
 - **Watch** the live output streamed from the Rebond.
 - **Browse** the full run history with per-host recap badges.
+- **Run again** from history or Run details to queue a new job with the same playbook, limit,
+  check and diff settings. Published Runs use the current Révision distante; Runs de brouillon
+  retain their original frozen commit and require the editor role.
 - **Inspect** your inventory (read-only; vault-encrypted values are never shown).
+- **Browse** the Dépôt Ansible files at the Révision distante (read-only, Monaco editor).
+- **Edit** them in a Brouillon ("draft"): autosaved to its own Git branch, pushed as a pull
+  request on Forgejo/Gitea, and runnable on its pushed commit before merge (editor role only).
+  Once every change is pushed, **Squash to main** merges that exact commit through the forge,
+  respecting required checks/reviews, then archives the Brouillon and deletes its branch.
+- **Add hosts** from Inventory or a Brouillon: choose groups, optional connection address and
+  host vars, review the YAML diff, then validate with Ansible on the Rebond. Comments and file
+  order stay intact. Inventory also opens host vars in a new or existing Brouillon.
 
 The app never runs Ansible itself: it connects over SSH to a Rebond you own — a machine that
 holds SSH access to your managed hosts and your vault password. The API synchronizes the Dépôt
@@ -39,12 +50,21 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
     "WorkingDirectory": "/home/ansible/infrastructure/ansible",
     "AcceptNewSshHostKeys": true
   },
+  "Drafts": {
+    "CommitterName": "Ansible UI",
+    "CommitterEmail": "ansible-ui@example.lan"
+  },
+  "Forge": {
+    "BaseUrl": "https://forge.example.lan",
+    "Token": "<forgejo token, from a secret>"
+  },
   "RepositorySynchronization": {
     "ProbeInterval": "00:00:01"
   },
   "Auth": {
     "Authority": "https://sso.example.lan/realms/main",
-    "Audience": "ansible-ui"
+    "Audience": "ansible-ui",
+    "EditorRole": "ansible-ui-editor"
   }
 }
 ```
@@ -52,6 +72,13 @@ Backend (`appsettings.Local.json`, environment variables, or mounted secret):
 `Ansible:WorkingDirectory` must be an absolute POSIX path inside `GitRepository:Path`.
 `Ansible:AcceptNewSshHostKeys` is disabled by default. When enabled, Ansible accepts and stores
 unknown OpenSSH host keys, but still rejects a host whose known key changed.
+
+Brouillons live in a separate clone at `Drafts:Root` (default `<GitRepository:Path>.drafts`) and
+never touch the authoritative clone. The Rebond Git key must be allowed to push. `Forge:Token`
+needs read/write access to the repository pull requests; `Forge:Owner` and `Forge:Repository`
+default to the last two segments of `GitRepository:Url`. Only users holding `Auth:EditorRole`
+(Keycloak realm or client role) can use Brouillons: a Run de brouillon executes unreviewed code
+on every managed host, so grant that role like root access to them.
 
 OIDC is mandatory. Kubernetes must inject backend `Auth__Authority` and `Auth__Audience`,
 and deploy a frontend `conf.js` with `oauth.authority` and `oauth.client_id`.
@@ -80,7 +107,7 @@ dotnet run --project AnsibleUi.AppHost
 ```
 
 Aspire starts MongoDB, local Keycloak, the API and the Vite dev server (front on
-http://localhost:5173). Sign in with `dev` / `dev`. Standalone `pnpm dev` does not provide
+http://localhost:5173). Sign in with `user` / `password`. Standalone `pnpm dev` does not provide
 an authenticated application.
 
 Run Docker-backed Keycloak browser tests separately after installing Playwright Chromium:

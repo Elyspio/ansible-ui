@@ -12,6 +12,7 @@ public interface IRepositorySynchronizer
 	Task<int> ExecutePlaybookAsync(
 		string playbook,
 		RunOptions options,
+		string? workingDirectory,
 		Func<string, Task> onOutput,
 		CancellationToken ct);
 }

@@ -16,6 +16,7 @@ export function useRepositoryRealtime(): void {
 			queryClient.setQueryData(qk.repository, status);
 			void queryClient.invalidateQueries({ queryKey: qk.playbooks });
 			void queryClient.invalidateQueries({ queryKey: qk.inventory });
+			void queryClient.invalidateQueries({ queryKey: qk.files, exact: true });
 		};
 
 		hub.on("repositoryStatusChanged", onRepositoryStatusChanged);

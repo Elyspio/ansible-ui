@@ -13,6 +13,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\AnsibleUi.Adapters.Git\AnsibleUi.Adapters.Git.csproj" />
 		<ProjectReference Include="..\AnsibleUi.Adapters.Ansible\AnsibleUi.Adapters.Ansible.csproj" />
+		<ProjectReference Include="..\AnsibleUi.Adapters.Forge\AnsibleUi.Adapters.Forge.csproj" />
 	</ItemGroup>
 
 	<PropertyGroup>

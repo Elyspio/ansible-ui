@@ -19,7 +19,7 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { useNavigate } from "react-router";
 import { usePlaybooks, useRepositoryStatus, useRuns } from "@/core/api/queries";
 import type { Playbook, Run } from "@/core/api/types";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import { EmptyState } from "@/view/components/EmptyState";
 import { LaunchDialog } from "./LaunchDialog";
 
@@ -77,7 +77,9 @@ export function PlaybooksPage() {
 	const theme = useTheme();
 	const navigate = useNavigate();
 	const { data, isPending, error, refetch, isFetching } = usePlaybooks();
-	const runs = useRuns();
+	const allRuns = useRuns();
+	// Runs de brouillon executed other code; the explorer reflects what main runs.
+	const runs = { ...allRuns, data: allRuns.data?.filter((run) => !run.draft) };
 	const repository = useRepositoryStatus();
 	const [selectedPath, setSelectedPath] = useState<string | null>(null);
 	const [launching, setLaunching] = useState<Playbook | null>(null);
@@ -153,7 +155,7 @@ export function PlaybooksPage() {
 						<Typography
 							sx={{
 								color: "text.secondary",
-								fontFamily: fontMono,
+								...mono,
 								mt: 0.75,
 								fontSize: { xs: 12, md: 14 },
 							}}
@@ -171,7 +173,7 @@ export function PlaybooksPage() {
 									borderRadius: 1.5,
 									color: "var(--accent)",
 									bgcolor: "var(--chip-bg)",
-									fontFamily: fontMono,
+									...mono,
 									fontSize: 12.5,
 								}}
 							>
@@ -289,7 +291,7 @@ export function PlaybooksPage() {
 											px: 2.25,
 											minHeight: 34,
 											color: "var(--text)",
-											fontFamily: fontMono,
+											...mono,
 											fontWeight: 500,
 										}}
 									>
@@ -345,7 +347,7 @@ export function PlaybooksPage() {
 														textAlign: "left",
 														cursor: "pointer",
 														font: "inherit",
-														fontFamily: fontMono,
+														...mono,
 														fontSize: 12.5,
 														color: "var(--text)",
 														bgcolor: active
@@ -405,7 +407,7 @@ export function PlaybooksPage() {
 											noWrap
 											sx={{
 												color: "text.secondary",
-												fontFamily: fontMono,
+												...mono,
 												fontSize: 12.5,
 											}}
 										>
@@ -465,7 +467,7 @@ export function PlaybooksPage() {
 												border: "1px solid var(--border)",
 												borderRadius: 1.5,
 												bgcolor: "var(--chip-bg)",
-												fontFamily: fontMono,
+												...mono,
 												fontSize: 12.5,
 												color: "var(--dim)",
 											}}
@@ -513,7 +515,7 @@ export function PlaybooksPage() {
 										borderRadius: 2,
 										bgcolor: "var(--chip-bg)",
 										color: "var(--yaml-value)",
-										fontFamily: fontMono,
+										...mono,
 										fontSize: 13,
 										lineHeight: 1.9,
 									}}
@@ -557,7 +559,7 @@ export function PlaybooksPage() {
 									<Typography
 										sx={{
 											color: "text.secondary",
-											fontFamily: fontMono,
+											...mono,
 											fontSize: 12.5,
 											mt: 1.5,
 										}}
@@ -587,7 +589,7 @@ export function PlaybooksPage() {
 													alignItems: "center",
 													py: 1.25,
 													borderBottom: "1px solid var(--border)",
-													fontFamily: fontMono,
+													...mono,
 													fontSize: 12.5,
 													"&:hover": { bgcolor: "action.hover" },
 												}}

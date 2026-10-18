@@ -19,6 +19,7 @@ public sealed class RealtimeNotifier(IHubContext<RunHub> hub) : IRealtimeNotifie
 			id = run.Id,
 			playbook = run.Playbook,
 			options = run.Options,
+			draft = run.Draft,
 			status = run.Status.ToString(),
 			requestedBy = run.RequestedBy,
 			createdAt = run.CreatedAt,
@@ -37,5 +38,24 @@ public sealed class RealtimeNotifier(IHubContext<RunHub> hub) : IRealtimeNotifie
 	public Task RepositoryStatusChangedAsync(RepositoryStatus status)
 	{
 		return hub.Clients.All.SendAsync("repositoryStatusChanged", status);
+	}
+
+	public Task DraftChangedAsync(Draft draft)
+	{
+		return hub.Clients.All.SendAsync("draftChanged", new
+		{
+			id = draft.Id,
+			title = draft.Title,
+			branch = draft.Branch,
+			baseRevision = draft.BaseRevision,
+			headRevision = draft.HeadRevision,
+			createdBy = draft.CreatedBy,
+			createdAt = draft.CreatedAt,
+			updatedAt = draft.UpdatedAt,
+			status = draft.Status.ToString(),
+			closedAt = draft.ClosedAt,
+			pullRequestNumber = draft.PullRequestNumber,
+			pullRequestUrl = draft.PullRequestUrl
+		});
 	}
 }

@@ -132,6 +132,7 @@ public sealed class RepositorySynchronizer(
 	public async Task<int> ExecutePlaybookAsync(
 		string playbook,
 		RunOptions options,
+		string? workingDirectory,
 		Func<string, Task> onOutput,
 		CancellationToken ct)
 	{
@@ -162,7 +163,7 @@ public sealed class RepositorySynchronizer(
 				await NotifyStatusAsync();
 				throw;
 			}
-			return await ansibleRebond.ExecutePlaybookAsync(playbook, options, onOutput, ct);
+			return await ansibleRebond.ExecutePlaybookAsync(playbook, options, workingDirectory, onOutput, ct);
 		}
 		finally
 		{

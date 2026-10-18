@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import type { HostRecap } from "@/core/api/types";
 
 /** Compact aggregate of the PLAY RECAP: totals across hosts, colored by severity. */
@@ -32,7 +32,7 @@ export function RecapBadges({ recap }: { recap: HostRecap[] }) {
 					key={part.label}
 					component="span"
 					sx={{
-						fontFamily: fontMono,
+						...mono,
 						fontSize: 11.5,
 						color: part.color,
 						whiteSpace: "nowrap",

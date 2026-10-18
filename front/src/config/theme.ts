@@ -2,80 +2,109 @@ import { alpha, createTheme, type Theme } from "@mui/material/styles";
 
 export type Mode = "light" | "dark";
 
-const fontSans = '"Space Grotesk Variable", "Space Grotesk", sans-serif';
-const fontMono = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace';
+declare module "@mui/material/styles" {
+	interface TypeBackground {
+		/** Surface one step above paper: active rows, tabs, status bar. */
+		raised: string;
+	}
+}
 
-// Ops-terminal palette: neutral zinc base, single desaturated emerald accent.
+// One variable family: Recursive's MONO axis turns the UI face into the code face, so code and
+// interface share proportions instead of pairing two unrelated typefaces.
+const fontSans = '"Recursive Variable", system-ui, sans-serif';
+const fontMono = '"Recursive Variable", ui-monospace, monospace';
+const sansVariation = '"MONO" 0, "CASL" 0.2';
+const monoVariation = '"MONO" 1, "CASL" 0';
+
+/** Spread into `sx` for code-like text: same family as the UI, monospaced axis. */
+export const mono = { fontFamily: fontMono, fontVariationSettings: monoVariation } as const;
+
+// Workbench palette: warm dark like a rack under sodium light; amber marks what you act on and
+// what changed, green is kept for success only.
 const palette = {
 	light: {
-		primary: "#177a54",
-		primaryDark: "#116244",
-		secondary: "#b45309",
-		background: "#f4f4f5",
-		paper: "#ffffff",
-		text: "#09090b",
-		muted: "#3f3f46",
-		divider: "#e4e4e7",
-		success: "#16a571",
-		warning: "#b45309",
-		error: "#dc2626",
+		primary: "#a35f07",
+		primaryDark: "#844c04",
+		primaryText: "#ffffff",
+		secondary: "#3d6f8c",
+		background: "#f3f0eb",
+		paper: "#fbf9f6",
+		raised: "#ebe5dc",
+		text: "#1f1a14",
+		muted: "#6a5d4e",
+		divider: "#ddd4c7",
+		success: "#2f7d45",
+		warning: "#9a6a00",
+		error: "#b8402f",
+		info: "#3d6f8c",
 	},
 	dark: {
-		primary: "#2fbf87",
-		primaryDark: "#25a171",
-		secondary: "#e8944a",
-		background: "#0a0a0b",
-		paper: "#18181b",
-		text: "#fafafa",
-		muted: "#d4d4d8",
-		divider: "#27272a",
-		success: "#34d399",
-		warning: "#fbbf24",
-		error: "#f87171",
+		primary: "#f0a43c",
+		primaryDark: "#d68b25",
+		primaryText: "#2a1a05",
+		secondary: "#8fb8d8",
+		background: "#16130f",
+		paper: "#1d1915",
+		raised: "#26211b",
+		text: "#efe7dc",
+		muted: "#a89a88",
+		divider: "#332c24",
+		success: "#7fc58f",
+		warning: "#e6c26b",
+		error: "#e58a7a",
+		info: "#8fb8d8",
 	},
 } as const;
 
-/** Terminal surface — always dark, whatever the app mode. */
+/** Code and terminal surface: always dark, whatever the app mode. */
 export const terminal = {
-	background: "#0c0e0d",
-	text: "#d8dedb",
-	border: "#1f2422",
+	background: "#120f0c",
+	text: "#e2d8ca",
+	muted: "#786b5b",
+	border: "#2a241d",
 	fontFamily: fontMono,
+	fontVariationSettings: monoVariation,
 } as const;
 
-export { fontMono, fontSans };
+export { fontMono, fontSans, monoVariation };
 
 export function buildTheme(mode: Mode): Theme {
 	const colors = palette[mode];
 	const theme = createTheme({
 		palette: {
 			mode,
-			primary: { main: colors.primary, dark: colors.primaryDark, contrastText: "#ffffff" },
-			secondary: { main: colors.secondary, contrastText: "#ffffff" },
+			primary: {
+				main: colors.primary,
+				dark: colors.primaryDark,
+				contrastText: colors.primaryText,
+			},
+			secondary: { main: colors.secondary },
 			success: { main: colors.success },
 			warning: { main: colors.warning },
 			error: { main: colors.error },
-			background: { default: colors.background, paper: colors.paper },
+			info: { main: colors.info },
+			background: { default: colors.background, paper: colors.paper, raised: colors.raised },
 			text: { primary: colors.text, secondary: colors.muted },
 			divider: colors.divider,
 		},
-		shape: { borderRadius: 12 },
+		shape: { borderRadius: 8 },
 		spacing: 8,
 		typography: {
 			fontFamily: fontSans,
-			h1: { fontSize: 26, fontWeight: 650, letterSpacing: "-0.03em", lineHeight: 1.15 },
-			h2: { fontSize: 21, fontWeight: 650, letterSpacing: "-0.02em" },
-			h4: { fontSize: 18, fontWeight: 650, letterSpacing: "-0.02em" },
-			h5: { fontSize: 16, fontWeight: 600, letterSpacing: "-0.015em" },
-			body1: { fontSize: 14.5, letterSpacing: "-0.005em" },
+			h1: { fontSize: 24, fontWeight: 680, letterSpacing: "-0.02em", lineHeight: 1.2 },
+			h2: { fontSize: 19, fontWeight: 650, letterSpacing: "-0.015em" },
+			h4: { fontSize: 17, fontWeight: 650, letterSpacing: "-0.01em" },
+			h5: { fontSize: 15, fontWeight: 620 },
+			body1: { fontSize: 14 },
 			body2: { fontSize: 13 },
 			overline: {
-				fontFamily: fontMono,
+				...mono,
 				fontSize: 11,
 				fontWeight: 500,
-				letterSpacing: "0.08em",
+				letterSpacing: "0.02em",
+				textTransform: "none",
 			},
-			button: { textTransform: "none", fontWeight: 600 },
+			button: { textTransform: "none", fontWeight: 620 },
 		},
 	});
 
@@ -87,53 +116,69 @@ export function buildTheme(mode: Mode): Theme {
 					body: {
 						margin: 0,
 						backgroundColor: colors.background,
-						fontFeatureSettings: '"ss01", "cv11"',
+						fontVariationSettings: sansVariation,
 					},
 					"*": { boxSizing: "border-box" },
 					"*:focus-visible": {
-						outline: `3px solid ${alpha(colors.primary, 0.45)}`,
+						outline: `2px solid ${alpha(colors.primary, 0.6)}`,
 						outlineOffset: 2,
 					},
+					"code, kbd, pre, samp": { ...mono },
 				},
 			},
 			MuiButton: {
 				defaultProps: { disableElevation: true },
 				styleOverrides: {
 					root: {
-						minHeight: 34,
-						borderRadius: 8,
+						minHeight: 32,
+						borderRadius: 6,
 						whiteSpace: "nowrap",
 						"&:active": { transform: "translateY(1px)" },
 					},
-					sizeSmall: { minHeight: 28, fontSize: 12 },
+					sizeSmall: { minHeight: 28, fontSize: 12.5 },
 					outlinedInherit: { borderColor: colors.divider, color: colors.text },
 					textInherit: { color: colors.muted },
 				},
 			},
-			MuiTextField: {
-				defaultProps: { variant: "standard" },
+			MuiIconButton: { styleOverrides: { root: { borderRadius: 6 } } },
+			MuiTextField: { defaultProps: { variant: "outlined", size: "small" } },
+			MuiOutlinedInput: {
 				styleOverrides: {
 					root: {
-						"& .MuiInputLabel-root": {
-							fontFamily: fontMono,
-							fontSize: 11,
-							letterSpacing: "0.08em",
-							textTransform: "uppercase",
+						backgroundColor: colors.background,
+						"& .MuiOutlinedInput-notchedOutline": { borderColor: colors.divider },
+						"&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+							boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.18)}`,
 						},
-						"& .MuiInputBase-input": { fontWeight: 500 },
 					},
 				},
 			},
 			MuiChip: {
 				styleOverrides: {
-					root: { fontWeight: 600 },
-					labelSmall: { fontFamily: fontMono, fontSize: 11, letterSpacing: "0.02em" },
+					root: { fontWeight: 600, borderRadius: 6 },
+					labelSmall: { ...mono, fontSize: 11.5 },
 				},
 			},
-			MuiPaper: { styleOverrides: { rounded: { borderRadius: 12 } } },
+			// Elevation tints turn dark papers grey; surfaces carry their own colour instead.
+			MuiPaper: {
+				styleOverrides: {
+					root: { backgroundImage: "none" },
+					rounded: { borderRadius: 10 },
+				},
+			},
 			MuiDialog: {
 				styleOverrides: {
-					paper: { border: `1px solid ${colors.divider}`, boxShadow: theme.shadows[12] },
+					paper: {
+						backgroundColor: colors.paper,
+						border: `1px solid ${colors.divider}`,
+						boxShadow: `0 24px 60px ${alpha("#000", mode === "dark" ? 0.55 : 0.18)}`,
+					},
+				},
+			},
+			MuiDialogTitle: { styleOverrides: { root: { fontSize: 17, fontWeight: 650 } } },
+			MuiMenu: {
+				styleOverrides: {
+					paper: { border: `1px solid ${colors.divider}`, backgroundColor: colors.paper },
 				},
 			},
 			MuiTooltip: {
@@ -141,6 +186,7 @@ export function buildTheme(mode: Mode): Theme {
 					tooltip: { fontSize: 12, backgroundColor: colors.text, color: colors.paper },
 				},
 			},
+			MuiTab: { styleOverrides: { root: { textTransform: "none", minHeight: 36 } } },
 		},
 	});
 }

@@ -19,9 +19,10 @@ public sealed class RunLauncher(IServiceProvider services, ILogger<RunLauncher> 
 	private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _active = new();
 	private readonly Channel<Guid> _queue = Channel.CreateUnbounded<Guid>();
 
-	public async Task<Run> SubmitAsync(string playbook, RunOptions options, string requestedBy, CancellationToken ct = default)
+	/// <param name="draft">Run de brouillon source; null runs the Révision distante.</param>
+	public async Task<Run> SubmitAsync(string playbook, RunOptions options, string requestedBy, DraftRunSource? draft = null, CancellationToken ct = default)
 	{
-		var run = new Run { Playbook = playbook, Options = options, RequestedBy = requestedBy };
+		var run = new Run { Playbook = playbook, Options = options, RequestedBy = requestedBy, Draft = draft };
 
 		using var scope = services.CreateScope();
 		await scope.ServiceProvider.GetRequiredService<IRunRepository>().InsertAsync(run, ct);
@@ -86,7 +87,11 @@ public sealed class RunLauncher(IServiceProvider services, ILogger<RunLauncher> 
 		var buffer = new StringBuilder();
 		try
 		{
-			var exitCode = await synchronizer.ExecutePlaybookAsync(run.Playbook, run.Options,
+			// A Run de brouillon executes its frozen commit from a dedicated detached worktree.
+			var workingDirectory = run.Draft is { } source
+				? await scoped.GetRequiredService<DraftService>().PrepareRunAsync(run.Id, source, cts.Token)
+				: null;
+			var exitCode = await synchronizer.ExecutePlaybookAsync(run.Playbook, run.Options, workingDirectory,
 				async chunk =>
 				{
 					buffer.Append(chunk);
@@ -118,6 +123,7 @@ public sealed class RunLauncher(IServiceProvider services, ILogger<RunLauncher> 
 		finally
 		{
 			_active.TryRemove(run.Id, out _);
+			if (run.Draft is not null) await CleanupDraftRunAsync(run.Id, scoped);
 		}
 
 		run.FinishedAt = DateTime.UtcNow;
@@ -127,10 +133,32 @@ public sealed class RunLauncher(IServiceProvider services, ILogger<RunLauncher> 
 		await notifier.RunChangedAsync(run);
 	}
 
+	private async Task CleanupDraftRunAsync(Guid runId, IServiceProvider scoped)
+	{
+		try
+		{
+			await scoped.GetRequiredService<DraftService>().CleanupRunAsync(runId);
+		}
+		catch (Exception e)
+		{
+			logger.LogWarning(e, "Could not remove the worktree of Run {RunId}", runId);
+		}
+	}
+
 	private async Task RecoverFromPreviousInstanceAsync(CancellationToken ct)
 	{
 		using var scope = services.CreateScope();
 		var repository = scope.ServiceProvider.GetRequiredService<IRunRepository>();
+
+		// Before re-enqueueing: worktrees of interrupted Runs de brouillon are stale.
+		try
+		{
+			await scope.ServiceProvider.GetRequiredService<DraftService>().CleanupRunsAsync(ct);
+		}
+		catch (Exception e) when (e is not OperationCanceledException)
+		{
+			logger.LogWarning(e, "Could not remove stale Run worktrees");
+		}
 
 		var interrupted = await repository.MarkRunningAsInterruptedAsync(ct);
 		if (interrupted > 0)

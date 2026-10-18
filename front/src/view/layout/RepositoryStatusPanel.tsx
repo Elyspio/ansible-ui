@@ -2,7 +2,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Tooltip, Typography } from 
 import SyncRoundedIcon from "@mui/icons-material/SyncRounded";
 import { useSynchronizeRepository } from "@/core/api/mutations";
 import { useRepositoryStatus } from "@/core/api/queries";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 
 function formatDate(value: string | null): string {
 	return value ? new Date(value).toLocaleString() : "Jamais";
@@ -33,7 +33,7 @@ export function RepositoryStatusPanel() {
 						color={data.isDegraded ? "warning" : "success"}
 						variant="outlined"
 						label={data.revision ? data.revision.slice(0, 8) : "Aucune révision"}
-						sx={{ fontFamily: fontMono, fontSize: 10.5, maxWidth: 120 }}
+						sx={{ ...mono, fontSize: 10.5, maxWidth: 120 }}
 					/>
 				</Tooltip>
 				<Button
@@ -56,7 +56,7 @@ export function RepositoryStatusPanel() {
 				sx={{
 					color: "text.secondary",
 					mt: 0.75,
-					fontFamily: fontMono,
+					...mono,
 					fontSize: 10,
 				}}
 			>

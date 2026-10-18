@@ -52,7 +52,18 @@
 					"value": "password",
 					"temporary": false
 				}
+			],
+			"realmRoles": [
+				"ansible-ui-editor"
 			]
 		}
-	]
+	],
+	"roles": {
+		"realm": [
+			{
+				"name": "ansible-ui-editor",
+				"description": "Edit, push and run Brouillons: runs unreviewed code on managed hosts."
+			}
+		]
+	}
 }

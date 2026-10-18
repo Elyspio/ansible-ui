@@ -5,17 +5,22 @@ import { SnackbarProvider } from "notistack";
 import { buildTheme, type Mode } from "@/config/theme";
 import { useRunsRealtime } from "@/core/signalr/useRunsRealtime";
 import { useRepositoryRealtime } from "@/core/signalr/useRepositoryRealtime";
+import { useDraftsRealtime } from "@/core/signalr/useDraftsRealtime";
 import { Shell } from "@/view/layout/Shell";
 import { PlaybooksPage } from "@/view/playbooks/PlaybooksPage";
 import { HistoryPage } from "@/view/runs/HistoryPage";
 import { RunPage } from "@/view/runs/RunPage";
 import { InventoryPage } from "@/view/inventory/InventoryPage";
+import { FilesPage } from "@/view/files/FilesPage";
+import { DraftsPage } from "@/view/drafts/DraftsPage";
+import { DraftWorkspacePage } from "@/view/drafts/DraftWorkspacePage";
 
 const MODE_KEY = "ansible-ui.mode";
 
 function Realtime() {
 	useRunsRealtime();
 	useRepositoryRealtime();
+	useDraftsRealtime();
 	return null;
 }
 
@@ -48,6 +53,9 @@ export function App() {
 							<Route path="/runs" element={<HistoryPage />} />
 							<Route path="/runs/:id" element={<RunPage />} />
 							<Route path="/inventory" element={<InventoryPage />} />
+							<Route path="/files" element={<FilesPage />} />
+							<Route path="/drafts" element={<DraftsPage />} />
+							<Route path="/drafts/:id" element={<DraftWorkspacePage />} />
 							<Route path="*" element={<Navigate to="/" replace />} />
 						</Routes>
 					</Shell>

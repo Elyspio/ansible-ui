@@ -16,7 +16,7 @@ public sealed class SshRemoteCommandExecutor(IOptions<SshConnectionOptions> opti
 	public async Task<RemoteCommandResult> ExecuteAsync(string script, CancellationToken ct = default)
 	{
 		using var client = await ConnectAsync(ct);
-		using var command = client.CreateCommand($"sh -c {PosixShell.Quote(script)}");
+		using var command = client.CreateCommand($"sh -c {PosixShell.QuoteForLoginShell(script)}");
 		var stdout = await Task.Factory.FromAsync(command.BeginExecute(), command.EndExecute).WaitAsync(ct);
 		return Result(command, stdout);
 	}
@@ -25,7 +25,7 @@ public sealed class SshRemoteCommandExecutor(IOptions<SshConnectionOptions> opti
 	{
 		using var client = await ConnectAsync(ct);
 		var wrappedScript = "echo \"__ANSIBLE_UI_PID__=$$\"; " + script;
-		using var command = client.CreateCommand($"sh -c {PosixShell.Quote(wrappedScript)}");
+		using var command = client.CreateCommand($"sh -c {PosixShell.QuoteForLoginShell(wrappedScript)}");
 		var asyncResult = command.BeginExecute();
 		int? remotePid = null;
 		var stdout = new StringBuilder();

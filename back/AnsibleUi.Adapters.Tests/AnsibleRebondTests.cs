@@ -26,6 +26,41 @@ public sealed class AnsibleRebondTests
 	}
 
 	[Fact]
+	public async Task Inventory_validation_parses_the_given_directory_strictly_and_drops_hostvars()
+	{
+		var commands = new FakeCommands("""
+			{"_meta":{"hostvars":{"web-1":{"secret":"decrypted"}}},"all":{"children":["web"]},"web":{"hosts":["web-1"]}}
+			""");
+		IAnsibleRebond rebond = Create(commands);
+
+		var validation = await rebond.ValidateInventoryAsync("/srv/drafts/it's", TestContext.Current.CancellationToken);
+
+		validation.Valid.ShouldBeTrue();
+		validation.Hosts.ShouldBe(["web-1"]);
+		validation.Groups.ShouldHaveSingleItem().Name.ShouldBe("web");
+		commands.LastScript.ShouldBe(
+			"cd '/srv/drafts/it'\\''s' && ANSIBLE_NOCOLOR=1 ANSIBLE_INVENTORY_UNPARSED_FAILED=True " +
+			"ANSIBLE_INVENTORY_ANY_UNPARSED_IS_FAILED=True ansible-inventory --list");
+	}
+
+	[Fact]
+	public async Task Inventory_validation_reports_the_error_tail_instead_of_throwing()
+	{
+		var commands = new FakeCommands("")
+		{
+			Result = new RemoteCommandResult("", "ERROR! Unable to parse inventory/hosts.yml\npassword: decrypted-secret\n", 1),
+		};
+		IAnsibleRebond rebond = Create(commands);
+
+		var validation = await rebond.ValidateInventoryAsync("/srv/drafts/x", TestContext.Current.CancellationToken);
+
+		validation.Valid.ShouldBeFalse();
+		validation.Error.ShouldBe("Ansible could not parse the draft inventory. Check its inventory files and ansible.cfg.");
+		validation.Error.ShouldNotBeNull().ShouldNotContain("decrypted-secret", Case.Sensitive);
+		validation.Hosts.ShouldBeEmpty();
+	}
+
+	[Fact]
 	public async Task Inventory_host_facts_expose_allowlisted_values_only()
 	{
 		var commands = new FakeCommands("""
@@ -66,11 +101,23 @@ public sealed class AnsibleRebondTests
 		var output = new List<string>();
 
 		var exitCode = await rebond.ExecutePlaybookAsync(
-			"playbooks/site.yml", new RunOptions(), chunk => { output.Add(chunk); return Task.CompletedTask; }, TestContext.Current.CancellationToken);
+			"playbooks/site.yml", new RunOptions(), null, chunk => { output.Add(chunk); return Task.CompletedTask; }, TestContext.Current.CancellationToken);
 
 		exitCode.ShouldBe(0);
 		output.ShouldBe(["PLAY [site]"]);
 		commands.LastScript.ShouldContain("ansible-playbook 'playbooks/site.yml'", Case.Sensitive);
+	}
+
+	[Fact]
+	public async Task Run_of_a_draft_executes_from_its_worktree()
+	{
+		var commands = new FakeCommands("");
+		IAnsibleRebond rebond = Create(commands);
+
+		await rebond.ExecutePlaybookAsync(
+			"playbooks/site.yml", new RunOptions(), "/srv/ansible.drafts/runs/42/ansible", _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+
+		commands.LastScript.ShouldStartWith("cd '/srv/ansible.drafts/runs/42/ansible' && exec env", Case.Sensitive);
 	}
 
 	[Fact]
@@ -80,7 +127,7 @@ public sealed class AnsibleRebondTests
 		IAnsibleRebond rebond = Create(commands, acceptNewSshHostKeys: true);
 
 		await rebond.ExecutePlaybookAsync(
-			"playbooks/site.yml", new RunOptions(), _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+			"playbooks/site.yml", new RunOptions(), null, _ => Task.CompletedTask, TestContext.Current.CancellationToken);
 
 		commands.LastScript.ShouldContain("--ssh-common-args '-o StrictHostKeyChecking=accept-new'", Case.Sensitive);
 	}
@@ -97,10 +144,11 @@ public sealed class AnsibleRebondTests
 		public string LastScript { get; private set; } = "";
 		public string LastOutput => output;
 		public string? StreamingOutput { get; set; }
+		public RemoteCommandResult? Result { get; set; }
 		public Task<RemoteCommandResult> ExecuteAsync(string script, CancellationToken ct = default)
 		{
 			LastScript = script;
-			return Task.FromResult(new RemoteCommandResult(output, "", 0));
+			return Task.FromResult(Result ?? new RemoteCommandResult(output, "", 0));
 		}
 		public async Task<RemoteCommandResult> ExecuteStreamingAsync(string script, Func<string, Task> onOutput, CancellationToken ct = default)
 		{

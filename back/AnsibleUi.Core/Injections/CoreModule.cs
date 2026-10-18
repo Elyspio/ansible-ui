@@ -16,6 +16,8 @@ public static class CoreModule
 		services.AddSingleton<RepositorySynchronizer>();
 		services.AddSingleton<IRepositorySynchronizer>(sp => sp.GetRequiredService<RepositorySynchronizer>());
 		services.AddHostedService<RepositoryWatchService>();
+		services.AddSingleton<DraftService>();
+		services.AddHostedService<DraftWatchService>();
 		services.AddSingleton<RunLauncher>();
 		services.AddHostedService(sp => sp.GetRequiredService<RunLauncher>());
 		return services;
