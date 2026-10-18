@@ -21,7 +21,7 @@ import { useRun } from "@/core/api/queries";
 import { useCancelRun } from "@/core/api/mutations";
 import { useRunStream } from "@/core/signalr/useRunStream";
 import { formatDateTime, formatDuration } from "@/core/format";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import { StatusChip } from "@/view/components/StatusChip";
 import { DraftRunChip } from "@/view/drafts/DraftRunChip";
 import { Terminal } from "./Terminal";
@@ -87,7 +87,7 @@ export function RunPage() {
 				) : (
 					run && (
 						<>
-							<Typography variant="h4" sx={{ fontFamily: fontMono }}>
+							<Typography variant="h4" sx={{ ...mono }}>
 								{run.playbook}
 							</Typography>
 							<StatusChip status={run.status} />
@@ -165,10 +165,7 @@ export function RunPage() {
 					>
 						Play recap
 					</Typography>
-					<Table
-						size="small"
-						sx={{ maxWidth: 720, "& td, & th": { fontFamily: fontMono } }}
-					>
+					<Table size="small" sx={{ maxWidth: 720, "& td, & th": { ...mono } }}>
 						<TableHead>
 							<TableRow>
 								<TableCell>host</TableCell>

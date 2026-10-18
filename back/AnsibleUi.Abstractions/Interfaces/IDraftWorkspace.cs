@@ -17,6 +17,9 @@ public interface IDraftWorkspace
 	/// <summary>Fetches every branch so ahead/behind counts follow the reference branch.</summary>
 	Task FetchAsync(CancellationToken ct = default);
 
+	/// <summary>Absolute Ansible directory inside the Brouillon worktree on the Rebond.</summary>
+	string AnsibleDirectoryOf(Guid draftId);
+
 	Task<IReadOnlyList<string>> ListFilesAsync(Guid draftId, CancellationToken ct = default);
 	Task<RepositoryFile> ReadFileAsync(Guid draftId, string path, CancellationToken ct = default);
 

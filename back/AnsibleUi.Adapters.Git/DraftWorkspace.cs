@@ -232,8 +232,13 @@ public sealed class DraftWorkspace(
 			$"git -C {Q(Repository)} worktree remove --force {Q(directory)} 2>/dev/null; rm -rf -- {Q(directory)}; " +
 			$"git -C {Q(Repository)} worktree add --quiet --detach {Q(directory)} {Q(commit)}",
 			"Could not check out the Brouillon for this Run", ct);
-		return _options.AnsibleDirectory == "" ? directory : $"{directory}/{_options.AnsibleDirectory}";
+		return WithAnsibleDirectory(directory);
 	}
+
+	public string AnsibleDirectoryOf(Guid draftId) => WithAnsibleDirectory(DraftDirectory(draftId));
+
+	private string WithAnsibleDirectory(string worktree) =>
+		_options.AnsibleDirectory == "" ? worktree : $"{worktree}/{_options.AnsibleDirectory}";
 
 	public async Task CleanupRunAsync(Guid runId, CancellationToken ct = default)
 	{

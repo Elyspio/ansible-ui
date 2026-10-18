@@ -4,8 +4,18 @@ import { isConflict, errorMessage, useWriteDraftFile } from "@/core/api/mutation
 import { useDraftBaseFile, useDraftFile } from "@/core/api/queries";
 import { FileNotice } from "@/view/editor/FileNotice";
 import { LazyCodeEditor } from "@/view/editor/LazyCodeEditor";
+import type { Cursor } from "@/view/editor/CodeEditor";
+import { languageFor } from "@/view/editor/languages";
+import { yamlPathAt } from "@/view/editor/yamlPath";
 
 export type SaveState = "saved" | "edited" | "saving" | "conflict" | "failed";
+
+/** Caret position plus the YAML keys around it, for the breadcrumb and status bar. */
+export interface EditorCursor {
+	line: number;
+	column: number;
+	trail: string[];
+}
 
 const autosaveDelay = 1000;
 
@@ -20,6 +30,7 @@ export function DraftFileEditor({
 	diff,
 	flushRef,
 	onSaveState,
+	onCursor,
 }: {
 	draftId: string;
 	path: string;
@@ -27,6 +38,7 @@ export function DraftFileEditor({
 	diff: boolean;
 	flushRef: RefObject<(() => Promise<void>) | null>;
 	onSaveState: (state: SaveState) => void;
+	onCursor?: (cursor: EditorCursor) => void;
 }) {
 	const file = useDraftFile(draftId, path);
 	const base = useDraftBaseFile(draftId, path, diff);
@@ -100,15 +112,25 @@ export function DraftFileEditor({
 	}, [path, writeFile, updateState]);
 
 	useEffect(() => {
-		flushRef.current = save;
+		const flush = async () => {
+			do {
+				await save();
+				if (stateRef.current === "conflict" || stateRef.current === "failed")
+					throw new Error("Resolve the unsaved file before continuing");
+			} while (bufferRef.current !== savedRef.current);
+		};
+		flushRef.current = flush;
+		return () => {
+			if (flushRef.current === flush) flushRef.current = null;
+		};
 	}, [flushRef, save]);
 
 	// Leaving the file (or the page) never drops typed text.
 	useEffect(
 		() => () => {
-			if (bufferRef.current !== savedRef.current) void flushRef.current?.();
+			if (bufferRef.current !== savedRef.current) void save();
 		},
-		[flushRef],
+		[save],
 	);
 
 	const change = (content: string) => {
@@ -119,6 +141,21 @@ export function DraftFileEditor({
 		if (timerRef.current) clearTimeout(timerRef.current);
 		timerRef.current = setTimeout(() => void save(), autosaveDelay);
 	};
+
+	const yaml = languageFor(path) === "yaml";
+	const cursor = useCallback(
+		({ line, column, offset }: Cursor) => {
+			let trail: string[] = [];
+			if (yaml && bufferRef.current)
+				try {
+					trail = yamlPathAt(bufferRef.current, offset);
+				} catch {
+					// Half-typed YAML: keep the breadcrumb at the file.
+				}
+			onCursor?.({ line, column, trail });
+		},
+		[yaml, onCursor],
+	);
 
 	const reload = async () => {
 		const fresh = await file.refetch();
@@ -198,6 +235,7 @@ export function DraftFileEditor({
 							value={buffer ?? ""}
 							readOnly={file.data.isReadOnly}
 							onChange={change}
+							onCursor={cursor}
 						/>
 					)}
 				</Box>

@@ -35,6 +35,7 @@ export function Terminal({ text, follow = true }: { text: string; follow?: boole
 				px: 2.5,
 				py: 2,
 				fontFamily: terminal.fontFamily,
+				fontVariationSettings: terminal.fontVariationSettings,
 				fontSize: 12.5,
 				lineHeight: 1.6,
 				whiteSpace: "pre-wrap",

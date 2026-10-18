@@ -28,7 +28,43 @@ public sealed partial class AnsibleRebond(
 	{
 		var result = await commands.ExecuteAsync($"cd {PosixShell.Quote(_options.WorkingDirectory)} && ansible-inventory --list", ct);
 		RequireSuccess(result, "ansible-inventory failed on the Rebond");
-		using var json = JsonDocument.Parse(result.StandardOutput);
+		var (groups, hosts) = ParseInventory(result.StandardOutput);
+		return new Inventory(groups, hosts.Select(host => new InventoryHost(
+			host,
+			null,
+			null,
+			null,
+			[],
+			"unknown",
+			null,
+			null,
+			null)).ToList());
+	}
+
+	public async Task<InventoryValidation> ValidateInventoryAsync(string workingDirectory, CancellationToken ct = default)
+	{
+		// By default ansible-inventory only warns about a source it cannot parse and lists an empty inventory.
+		var result = await commands.ExecuteAsync(
+			$"cd {PosixShell.Quote(workingDirectory)} && ANSIBLE_NOCOLOR=1 ANSIBLE_INVENTORY_UNPARSED_FAILED=True " +
+			"ANSIBLE_INVENTORY_ANY_UNPARSED_IS_FAILED=True ansible-inventory --list", ct);
+		// Parser diagnostics can quote inventory variables or decrypted plugin values.
+		if (!result.Succeeded) return new InventoryValidation(false,
+			"Ansible could not parse the draft inventory. Check its inventory files and ansible.cfg.", [], []);
+		try
+		{
+			var (groups, hosts) = ParseInventory(result.StandardOutput);
+			return new InventoryValidation(true, null, groups, hosts);
+		}
+		catch (JsonException)
+		{
+			return new InventoryValidation(false, "ansible-inventory returned malformed output.", [], []);
+		}
+	}
+
+	/// <summary>Groups and host names only: <c>_meta.hostvars</c> may hold decrypted vault values and is dropped here.</summary>
+	private static (IReadOnlyList<InventoryGroup> Groups, IReadOnlyList<string> Hosts) ParseInventory(string output)
+	{
+		using var json = JsonDocument.Parse(output);
 		var groups = new List<InventoryGroup>();
 		var hosts = new SortedSet<string>(StringComparer.Ordinal);
 		foreach (var property in json.RootElement.EnumerateObject())
@@ -41,16 +77,7 @@ public sealed partial class AnsibleRebond(
 		}
 		if (json.RootElement.TryGetProperty("ungrouped", out var ungrouped))
 			foreach (var host in ReadStringArray(ungrouped, "hosts")) hosts.Add(host);
-		return new Inventory(groups, hosts.Select(host => new InventoryHost(
-			host,
-			null,
-			null,
-			null,
-			[],
-			"unknown",
-			null,
-			null,
-			null)).ToList());
+		return (groups, hosts.ToList());
 	}
 
 	public async Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default)

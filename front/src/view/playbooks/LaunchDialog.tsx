@@ -13,7 +13,7 @@ import { useSnackbar } from "notistack";
 import { useRuns } from "@/core/api/queries";
 import { useSubmitRun } from "@/core/api/mutations";
 import type { Playbook } from "@/core/api/types";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import { defaultRunOptions, RunOptionsFields, toRunRequest } from "./RunOptionsFields";
 
 export function LaunchDialog({
@@ -57,7 +57,7 @@ export function LaunchDialog({
 				<Typography
 					sx={{
 						color: "text.secondary",
-						fontFamily: fontMono,
+						...mono,
 						fontSize: 12.5,
 					}}
 				>

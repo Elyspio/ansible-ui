@@ -20,7 +20,7 @@ import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { appVersion } from "@/config/runtime";
-import { fontMono, type Mode } from "@/config/theme";
+import { mono, type Mode } from "@/config/theme";
 import { useAuth } from "@/core/auth/useAuth";
 import { useMe } from "@/core/api/queries";
 import { RepositoryStatusPanel } from "./RepositoryStatusPanel";
@@ -69,7 +69,7 @@ export function Shell({
 			>
 				<Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 2.5, py: 2.5 }}>
 					<TerminalRoundedIcon sx={{ color: "primary.main" }} />
-					<Typography sx={{ fontFamily: fontMono, fontWeight: 600, fontSize: 15 }}>
+					<Typography sx={{ ...mono, fontWeight: 600, fontSize: 15 }}>
 						ansible-ui
 					</Typography>
 				</Box>
@@ -122,7 +122,7 @@ export function Shell({
 							noWrap
 							sx={{
 								color: "text.secondary",
-								fontFamily: fontMono,
+								...mono,
 								fontSize: 10.5,
 							}}
 						>

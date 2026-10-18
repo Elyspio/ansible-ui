@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { http } from "./client";
 import { qk } from "./queries";
+import { validateDraftInventory } from "./draftFiles";
 import type { Draft, RepositoryStatus, Run } from "./types";
 
 export interface SubmitRunRequest {
@@ -154,4 +155,11 @@ export function isConflict(error: unknown): boolean {
 		error !== null &&
 		(error as { response?: { status?: number } }).response?.status === 409
 	);
+}
+
+/** Runs ansible-inventory in the Brouillon worktree, saved edits included. */
+export function useValidateDraftInventory(draftId: string) {
+	return useMutation({
+		mutationFn: () => validateDraftInventory(draftId),
+	});
 }

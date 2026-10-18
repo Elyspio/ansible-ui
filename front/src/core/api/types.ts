@@ -44,6 +44,14 @@ export interface InventoryGroup {
 	children: string[];
 }
 
+/** Inventory of a Brouillon as Ansible parses it; mirrors InventoryValidation. Never carries vars. */
+export interface InventoryValidation {
+	valid: boolean;
+	error: string | null;
+	groups: InventoryGroup[];
+	hosts: string[];
+}
+
 export interface Inventory {
 	groups: InventoryGroup[];
 	hosts: InventoryHost[];

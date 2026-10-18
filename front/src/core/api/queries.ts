@@ -28,6 +28,8 @@ export const qk = {
 	draftFile: (id: string, path: string) => ["drafts", id, "file", path] as const,
 	draftBaseFile: (id: string, path: string) => ["drafts", id, "base", path] as const,
 	draftPlaybooks: (id: string) => ["drafts", id, "playbooks"] as const,
+	addHostSource: (id: string | null, revision: string | undefined) =>
+		["add-host-source", id, revision] as const,
 };
 
 export function useMe() {

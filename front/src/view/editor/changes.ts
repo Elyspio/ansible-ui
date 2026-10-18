@@ -17,12 +17,11 @@ export const changeLabel: Record<DraftFileChangeKind, string> = {
 
 /** Git-status colors, shared by the tree stripe, the change list and the diff gutter. */
 export function changeColor(theme: Theme, kind: DraftFileChangeKind): string {
-	const dark = theme.palette.mode === "dark";
 	const colors: Record<DraftFileChangeKind, string> = {
 		Added: theme.palette.success.main,
-		Modified: dark ? "#fbbf24" : "#b45309",
+		Modified: theme.palette.primary.main,
 		Deleted: theme.palette.error.main,
-		Renamed: dark ? "#a78bfa" : "#7c3aed",
+		Renamed: theme.palette.info.main,
 	};
 	return colors[kind];
 }

@@ -4,13 +4,19 @@ import { Alert, Box, Button, Skeleton, Typography } from "@mui/material";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { useMe, usePublishedFile, usePublishedFiles } from "@/core/api/queries";
-import { fontMono } from "@/config/theme";
 import { EmptyState } from "@/view/components/EmptyState";
 import { CreateDraftDialog } from "@/view/drafts/CreateDraftDialog";
 import { FileNotice } from "@/view/editor/FileNotice";
 import { FileTree } from "@/view/editor/FileTree";
 import { LazyCodeEditor } from "@/view/editor/LazyCodeEditor";
-import { PaneBar, SplitPanel } from "@/view/editor/SplitPanel";
+import {
+	Breadcrumbs,
+	FileTabs,
+	StatusBar,
+	StatusItem,
+	Workbench,
+	WorkbenchHeader,
+} from "@/view/editor/Workbench";
 
 /** Read-only Dépôt Ansible at the Révision distante; editors start a draft from here. */
 export function FilesPage() {
@@ -25,101 +31,98 @@ export function FilesPage() {
 	const select = (path: string) => setParams({ path }, { replace: true });
 
 	return (
-		<Box
-			sx={{
-				px: { xs: 2, md: 5 },
-				py: 3,
-				display: "flex",
-				flexDirection: "column",
-				gap: 2.5,
-				height: { md: "100dvh" },
-			}}
-		>
-			<Box sx={{ display: "flex", alignItems: "start", gap: 2, flexWrap: "wrap" }}>
-				<Box sx={{ flex: 1, minWidth: 0 }}>
-					<Typography variant="h1">Files</Typography>
-					<Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
-						The Dépôt Ansible at Révision distante{" "}
-						<Box component="span" sx={{ fontFamily: fontMono }}>
-							{revision?.slice(0, 8) ?? "…"}
-						</Box>
-						, read-only.
+		<Workbench
+			header={
+				<WorkbenchHeader
+					title="Files"
+					badge={
+						<Typography sx={{ color: "text.secondary", fontSize: 12 }}>
+							Dépôt Ansible
+						</Typography>
+					}
+					actions={
+						me.data?.canEdit && (
+							<Button
+								variant="contained"
+								startIcon={<EditNoteRoundedIcon />}
+								onClick={() => setCreating(true)}
+							>
+								{selected ? "Edit in a draft" : "New draft"}
+							</Button>
+						)
+					}
+				/>
+			}
+			tabs={
+				selected && (
+					<FileTabs
+						tabs={[{ path: selected }]}
+						active={selected}
+						onSelect={select}
+						onClose={() => setParams({}, { replace: true })}
+					/>
+				)
+			}
+			status={
+				<StatusBar>
+					<StatusItem>
+						Révision distante <strong>{revision?.slice(0, 8) ?? "…"}</strong>
+					</StatusItem>
+					<StatusItem>Read-only</StatusItem>
+					<StatusItem>
+						<strong>{files.data?.files.length ?? 0}</strong> files
+					</StatusItem>
+				</StatusBar>
+			}
+			side={
+				<>
+					<Typography sx={{ px: 1.75, py: 1.5, fontSize: 12, color: "text.secondary" }}>
+						Files at Révision distante
 					</Typography>
-				</Box>
-				{me.data?.canEdit && (
-					<Button
-						variant="contained"
-						startIcon={<EditNoteRoundedIcon />}
-						onClick={() => setCreating(true)}
-					>
-						{selected ? "Edit in a draft" : "New draft"}
-					</Button>
-				)}
-			</Box>
-
+					{files.isPending &&
+						Array.from({ length: 10 }, (_, index) => (
+							<Skeleton key={index} height={26} sx={{ mx: 2 }} />
+						))}
+					{files.data && (
+						<FileTree files={files.data.files} selected={selected} onSelect={select} />
+					)}
+				</>
+			}
+		>
 			{files.error && (
 				<Alert severity="error">Could not list files: {files.error.message}</Alert>
 			)}
 
-			<SplitPanel
-				side={
-					<Box sx={{ overflow: "auto", flex: 1 }}>
-						{files.isPending &&
-							Array.from({ length: 10 }, (_, index) => (
-								<Skeleton
-									key={index}
-									height={26}
-									sx={{ mx: 2, transform: "none", my: 0.5 }}
-								/>
-							))}
-						{files.data && (
-							<FileTree
-								files={files.data.files}
-								selected={selected}
-								onSelect={select}
+			{selected && file.data ? (
+				<>
+					<Breadcrumbs path={selected} />
+					<FileNotice file={file.data} />
+					{file.data.content !== null && (
+						<Box sx={{ flex: 1, minHeight: 0 }}>
+							<LazyCodeEditor
+								modelPath={`file:///published/${revision}/${selected}`}
+								filePath={selected}
+								value={file.data.content}
+								readOnly
 							/>
-						)}
-					</Box>
-				}
-			>
-				{selected && file.data ? (
-					<>
-						<PaneBar>
-							<Typography
-								noWrap
-								sx={{ fontFamily: fontMono, fontSize: 12.5, flex: 1 }}
-							>
-								{selected}
-							</Typography>
-						</PaneBar>
-						<FileNotice file={file.data} />
-						{file.data.content !== null && (
-							<Box sx={{ flex: 1, minHeight: 0 }}>
-								<LazyCodeEditor
-									modelPath={`file:///published/${revision}/${selected}`}
-									filePath={selected}
-									value={file.data.content}
-									readOnly
-								/>
-							</Box>
-						)}
-					</>
-				) : file.error ? (
-					<Alert severity="error" sx={{ m: 2 }}>
-						Could not read {selected}: {file.error.message}
-					</Alert>
-				) : (
-					<EmptyState
-						icon={<DescriptionOutlinedIcon />}
-						title={selected ? "Opening…" : "Pick a file"}
-						hint={
-							selected
-								? undefined
-								: "Browse the Dépôt Ansible as the Rebond runs it. Changes go through a draft."
-						}
-					/>
-				)}
-			</SplitPanel>
+						</Box>
+					)}
+				</>
+			) : file.error ? (
+				<Alert severity="error" sx={{ m: 2 }}>
+					Could not read {selected}: {file.error.message}
+				</Alert>
+			) : (
+				<EmptyState
+					icon={<DescriptionOutlinedIcon />}
+					title={selected ? "Opening…" : "Pick a file"}
+					hint={
+						selected
+							? undefined
+							: "Browse the Dépôt Ansible as the Rebond runs it. Changes go through a draft."
+					}
+				/>
+			)}
 
 			<CreateDraftDialog
 				open={creating}
@@ -127,6 +130,6 @@ export function FilesPage() {
 				openPath={selected}
 				onClose={() => setCreating(false)}
 			/>
-		</Box>
+		</Workbench>
 	);
 }

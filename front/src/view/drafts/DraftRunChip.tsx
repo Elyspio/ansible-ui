@@ -6,7 +6,7 @@ import type { DraftRunSource } from "@/core/api/types";
 /** Marks a Run de brouillon: unmerged code, frozen at one pushed commit. */
 export function DraftRunChip({ draft, link = true }: { draft: DraftRunSource; link?: boolean }) {
 	const label = `draft ${draft.branch} @ ${draft.revision.slice(0, 8)}`;
-	const sx = { color: "secondary.main", borderColor: "secondary.main", maxWidth: "100%" };
+	const sx = { color: "primary.main", borderColor: "primary.main", maxWidth: "100%" };
 	return link ? (
 		<Chip
 			size="small"

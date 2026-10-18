@@ -3,6 +3,7 @@ import {
 	Alert,
 	alpha,
 	Box,
+	Button,
 	CircularProgress,
 	InputBase,
 	Skeleton,
@@ -13,11 +14,15 @@ import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownR
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import DnsRoundedIcon from "@mui/icons-material/DnsRounded";
-import { useHostVars, useInventory, useRepositoryStatus } from "@/core/api/queries";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
+import { useHostVars, useInventory, useRepositoryStatus, useMe } from "@/core/api/queries";
 import type { InventoryHost, InventoryHostStatus } from "@/core/api/types";
-import { fontMono, fontSans, terminal } from "@/config/theme";
+import { mono, fontSans, terminal } from "@/config/theme";
 import { formatRelative } from "@/core/format";
 import { EmptyState } from "@/view/components/EmptyState";
+import { AddHostDialog } from "./AddHostDialog";
+import { EditHostVarsDialog } from "./EditHostVarsDialog";
 
 // Deterministic per-group hue derived from the name — no inventory-specific mapping,
 // the app stays generic whatever groups the user's repository defines.
@@ -35,7 +40,8 @@ function statusColor(status: InventoryHostStatus) {
 
 function groupColor(group: string) {
 	const normalized = group.toUpperCase();
-	const hash = [...normalized].reduce((value, character) => value + character.charCodeAt(0), 0);
+	let hash = 0;
+	for (let index = 0; index < normalized.length; index++) hash += normalized.charCodeAt(index);
 	return groupPalette[hash % groupPalette.length];
 }
 
@@ -69,6 +75,9 @@ export function InventoryPage() {
 	const theme = useTheme();
 	const inventory = useInventory();
 	const repository = useRepositoryStatus();
+	const me = useMe();
+	const [adding, setAdding] = useState(false);
+	const [editingVars, setEditingVars] = useState<string | null>(null);
 	const [selectedName, setSelectedName] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
 	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -103,7 +112,7 @@ export function InventoryPage() {
 		"--border": theme.palette.divider,
 		"--text": theme.palette.text.primary,
 		"--dim": theme.palette.text.secondary,
-		"--chip-bg": theme.palette.mode === "dark" ? "#121815" : "#f5f7f6",
+		"--chip-bg": theme.palette.background.raised,
 		"--accent": theme.palette.primary.main,
 	} as React.CSSProperties;
 
@@ -112,13 +121,11 @@ export function InventoryPage() {
 			sx={{
 				...tokens,
 				bgcolor: "var(--bg)",
-				height: "100dvh",
-				minHeight: 0,
-				overflow: "hidden",
+				height: { md: "100dvh" },
+				minHeight: { xs: "100dvh", md: 0 },
+				overflow: { md: "hidden" },
 				display: "flex",
 				flexDirection: "column",
-				px: { xs: 2, md: 5 },
-				py: { xs: 3, md: 4 },
 			}}
 		>
 			<Box
@@ -127,16 +134,20 @@ export function InventoryPage() {
 					justifyContent: "space-between",
 					alignItems: "start",
 					gap: 2,
-					mb: 3,
+					px: 2,
+					py: 1.5,
+					flexWrap: "wrap",
+					borderBottom: 1,
+					borderColor: "divider",
 					flexShrink: 0,
 				}}
 			>
-				<Box>
+				<Box sx={{ flex: 1 }}>
 					<Typography
 						variant="h1"
 						sx={{
 							fontFamily: fontSans,
-							fontSize: { xs: 30, md: 38 },
+							fontSize: 18,
 							color: "var(--text)",
 						}}
 					>
@@ -145,15 +156,23 @@ export function InventoryPage() {
 					<Typography
 						sx={{
 							color: "text.secondary",
-							fontFamily: fontMono,
+							...mono,
 							mt: 0.75,
 							fontSize: { xs: 12, md: 14 },
 						}}
 					>
-						Read-only view of control node inventory. Vault-encrypted values never leave
-						it.
+						Hosts and facts from the Rebond. Changes go through a draft.
 					</Typography>
 				</Box>
+				{me.data?.canEdit && (
+					<Button
+						variant="contained"
+						startIcon={<AddRoundedIcon />}
+						onClick={() => setAdding(true)}
+					>
+						Add host
+					</Button>
+				)}
 				{repository.data?.revision && (
 					<Box
 						sx={{
@@ -163,12 +182,12 @@ export function InventoryPage() {
 							borderRadius: 1.5,
 							color: "var(--accent)",
 							bgcolor: "var(--chip-bg)",
-							fontFamily: fontMono,
+							...mono,
 							fontSize: 12.5,
 							flexShrink: 0,
 						}}
 					>
-						HEAD {repository.data.revision.slice(0, 8)}
+						{repository.data.revision.slice(0, 8)}
 					</Box>
 				)}
 			</Box>
@@ -187,25 +206,23 @@ export function InventoryPage() {
 					flexDirection: "column",
 					overflow: "hidden",
 					bgcolor: "var(--panel)",
-					border: "1px solid var(--border)",
-					borderRadius: 3,
 				}}
 			>
 				<Box
 					sx={{
-						minHeight: 72,
+						minHeight: 48,
 						px: { xs: 2, md: 4 },
 						display: "flex",
 						alignItems: "center",
 						gap: { xs: 1, md: 3 },
 						flexWrap: "wrap",
 						borderBottom: "1px solid var(--border)",
-						fontFamily: fontMono,
+						...mono,
 					}}
 				>
 					<Typography
 						sx={{
-							fontFamily: fontMono,
+							...mono,
 							fontWeight: 700,
 							fontSize: 18,
 							mr: { md: 1 },
@@ -235,7 +252,7 @@ export function InventoryPage() {
 						sx={{
 							ml: { md: "auto" },
 							color: "var(--dim)",
-							fontFamily: fontMono,
+							...mono,
 							fontSize: 12.5,
 						}}
 					>
@@ -320,7 +337,7 @@ export function InventoryPage() {
 									onChange={(event) => setQuery(event.target.value)}
 									placeholder="Filter hosts..."
 									inputProps={{ "aria-label": "Filter hosts" }}
-									sx={{ fontFamily: fontMono, fontSize: 13, flex: 1 }}
+									sx={{ ...mono, fontSize: 13, flex: 1 }}
 								/>
 							</Box>
 						</Box>
@@ -337,7 +354,7 @@ export function InventoryPage() {
 							<EmptyState
 								icon={<DnsRoundedIcon />}
 								title="Empty inventory"
-								hint="ansible-inventory returned no hosts on control node."
+								hint="No hosts in the inventory on the Rebond."
 							/>
 						)}
 						{inventory.data &&
@@ -346,7 +363,7 @@ export function InventoryPage() {
 								<Typography
 									sx={{
 										p: 3,
-										fontFamily: fontMono,
+										...mono,
 										color: "var(--dim)",
 										fontSize: 12.5,
 									}}
@@ -381,7 +398,7 @@ export function InventoryPage() {
 											color: "var(--text)",
 											px: 2.25,
 											cursor: "pointer",
-											fontFamily: fontMono,
+											...mono,
 											fontSize: 12.5,
 											textAlign: "left",
 										}}
@@ -436,7 +453,7 @@ export function InventoryPage() {
 														textAlign: "left",
 														cursor: "pointer",
 														font: "inherit",
-														fontFamily: fontMono,
+														...mono,
 														fontSize: 12.5,
 														color: "var(--text)",
 														bgcolor: active
@@ -474,7 +491,17 @@ export function InventoryPage() {
 						})}
 					</Box>
 
-					<Box sx={{ overflow: "hidden", p: { xs: 3, md: 6 } }}>
+					<Box sx={{ overflow: "auto", p: { xs: 2, md: 4 } }}>
+						{selected && me.data?.canEdit && (
+							<Button
+								variant="outlined"
+								startIcon={<EditNoteRoundedIcon />}
+								sx={{ mb: 3 }}
+								onClick={() => setEditingVars(selected.name)}
+							>
+								Edit host vars
+							</Button>
+						)}
 						{inventory.isPending && (
 							<Box sx={{ display: "grid", placeItems: "center", minHeight: 180 }}>
 								<CircularProgress size={24} />
@@ -493,6 +520,12 @@ export function InventoryPage() {
 					</Box>
 				</Box>
 			</Box>
+			{me.data?.canEdit && (
+				<>
+					<AddHostDialog open={adding} onClose={() => setAdding(false)} />
+					<EditHostVarsDialog host={editingVars} onClose={() => setEditingVars(null)} />
+				</>
+			)}
 		</Box>
 	);
 }
@@ -512,7 +545,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 					<Typography
 						sx={{
 							color: "text.secondary",
-							fontFamily: fontMono,
+							...mono,
 							fontSize: 12.5,
 						}}
 					>
@@ -523,7 +556,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 						sx={{
 							mt: 1,
 							fontFamily: fontSans,
-							fontSize: { xs: 27, md: 36 },
+							fontSize: { xs: 22, md: 28 },
 							overflowWrap: "anywhere",
 						}}
 					>
@@ -540,7 +573,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 						border: "1px solid var(--border)",
 						borderRadius: 1.5,
 						bgcolor: "var(--chip-bg)",
-						fontFamily: fontMono,
+						...mono,
 						fontSize: 12.5,
 						flexShrink: 0,
 					}}
@@ -559,7 +592,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 							borderRadius: 1.5,
 							color: groupColor(group),
 							bgcolor: "var(--chip-bg)",
-							fontFamily: fontMono,
+							...mono,
 							fontSize: 12.5,
 							fontWeight: 650,
 						}}
@@ -586,7 +619,7 @@ function HostDetail({ host }: { host: InventoryHost }) {
 					border: "1px solid var(--border)",
 					borderRadius: 2,
 					bgcolor: "var(--chip-bg)",
-					fontFamily: fontMono,
+					...mono,
 					fontSize: { xs: 12, md: 13 },
 					lineHeight: 1.9,
 				}}

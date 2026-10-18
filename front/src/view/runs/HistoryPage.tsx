@@ -3,7 +3,7 @@ import { Alert, Box, Divider, List, ListItemButton, Skeleton, Typography } from 
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import { useRuns } from "@/core/api/queries";
 import { formatDuration, formatRelative } from "@/core/format";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import { StatusChip } from "@/view/components/StatusChip";
 import { RecapBadges } from "@/view/components/RecapBadges";
 import { EmptyState } from "@/view/components/EmptyState";
@@ -54,10 +54,7 @@ export function HistoryPage() {
 								<StatusChip status={run.status} />
 							</Box>
 							<Box sx={{ minWidth: 0, flex: 1 }}>
-								<Typography
-									noWrap
-									sx={{ fontFamily: fontMono, fontSize: 13, fontWeight: 600 }}
-								>
+								<Typography noWrap sx={{ ...mono, fontSize: 13, fontWeight: 600 }}>
 									{run.playbook}
 								</Typography>
 								{run.draft && <DraftRunChip draft={run.draft} link={false} />}
@@ -93,7 +90,7 @@ export function HistoryPage() {
 									<Typography
 										sx={{
 											color: "text.secondary",
-											fontFamily: fontMono,
+											...mono,
 											fontSize: 11,
 										}}
 									>

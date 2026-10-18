@@ -8,11 +8,11 @@ const labels: Record<DraftStatus, string> = {
 	Abandoned: "abandoned",
 };
 
-/** Amber marks unmerged code everywhere in the app; emerald is what main runs. */
+/** Amber marks unmerged code everywhere in the app; green is what main runs. */
 export function DraftStatusChip({ status }: { status: DraftStatus }) {
 	const theme = useTheme();
 	const colors: Record<DraftStatus, string> = {
-		Open: theme.palette.secondary.main,
+		Open: theme.palette.primary.main,
 		Merged: theme.palette.success.main,
 		Closed: theme.palette.text.secondary,
 		Abandoned: theme.palette.text.secondary,

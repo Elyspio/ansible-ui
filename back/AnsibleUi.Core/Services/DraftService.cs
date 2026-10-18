@@ -20,6 +20,7 @@ public sealed class DraftService(
 	IDraftRepository drafts,
 	IDraftWorkspace workspace,
 	IForge forge,
+	IAnsibleRebond ansible,
 	IRealtimeNotifier notifier,
 	ILogger<DraftService> logger)
 {
@@ -151,6 +152,16 @@ public sealed class DraftService(
 			await CloseAsync(draft, DraftStatus.Abandoned, ct);
 			return draft;
 		}, ct);
+	}
+
+	/// <summary>
+	///     Parses the inventory of the Brouillon as it stands on disk, saved edits included. Lock-free like
+	///     file reads: it only reads the worktree.
+	/// </summary>
+	public async Task<InventoryValidation> ValidateInventoryAsync(Guid id, CancellationToken ct = default)
+	{
+		var draft = await RequireOpenAsync(id, ct);
+		return await ansible.ValidateInventoryAsync(workspace.AnsibleDirectoryOf(draft.Id), ct);
 	}
 
 	public async Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(Guid id, CancellationToken ct = default)

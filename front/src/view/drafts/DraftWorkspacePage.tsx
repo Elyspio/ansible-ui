@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+	Link as RouterLink,
+	useLocation,
+	useNavigate,
+	useParams,
+	useSearchParams,
+} from "react-router";
 import {
 	Alert,
 	Box,
 	Button,
-	Chip,
 	IconButton,
 	Link,
+	ListItemIcon,
+	ListItemText,
 	Menu,
 	MenuItem,
 	Skeleton,
-	Tab,
-	Tabs,
 	ToggleButton,
 	ToggleButtonGroup,
 	Tooltip,
@@ -19,11 +24,11 @@ import {
 	useTheme,
 } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
-import CallSplitRoundedIcon from "@mui/icons-material/CallSplitRounded";
-import CloudUploadRoundedIcon from "@mui/icons-material/CloudUploadRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import DnsRoundedIcon from "@mui/icons-material/DnsRounded";
 import DriveFileRenameOutlineRoundedIcon from "@mui/icons-material/DriveFileRenameOutlineRounded";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
@@ -37,19 +42,37 @@ import {
 	useDeleteDraftFile,
 	useRebaseDraft,
 	useRenameDraftFile,
+	useValidateDraftInventory,
 	useWriteDraftFile,
 } from "@/core/api/mutations";
-import type { CommitChecks, DraftDetail, DraftFileChangeKind } from "@/core/api/types";
-import { fontMono } from "@/config/theme";
+import type {
+	CommitChecks,
+	DraftFileChange,
+	DraftFileChangeKind,
+	InventoryValidation,
+} from "@/core/api/types";
+import { mono } from "@/config/theme";
 import { EmptyState } from "@/view/components/EmptyState";
 import { changeColor, changeLetter } from "@/view/editor/changes";
 import { FileTree } from "@/view/editor/FileTree";
+import { languageFor } from "@/view/editor/languages";
 import { LazyCodeEditor } from "@/view/editor/LazyCodeEditor";
-import { PaneBar, SplitPanel } from "@/view/editor/SplitPanel";
-import { DraftFileEditor, type SaveState } from "./DraftFileEditor";
-import { CommitDialog, ConfirmDialog, PathDialog } from "./DraftDialogs";
+import {
+	Breadcrumbs,
+	FileTabs,
+	StatusBar,
+	StatusItem,
+	statusSpacer,
+	Workbench,
+	WorkbenchHeader,
+} from "@/view/editor/Workbench";
+import { AddHostDialog, type InventoryCheckState } from "@/view/inventory/AddHostDialog";
+import { CommitComposer } from "./CommitComposer";
+import { DraftFileEditor, type EditorCursor, type SaveState } from "./DraftFileEditor";
+import { ConfirmDialog, PathDialog } from "./DraftDialogs";
 import { DraftLaunchDialog } from "./DraftLaunchDialog";
 import { DraftStatusChip } from "./DraftStatusChip";
+import { InventoryCheckPanel } from "./InventoryCheckPanel";
 
 const saveLabels: Record<SaveState, string> = {
 	saved: "Saved",
@@ -59,42 +82,149 @@ const saveLabels: Record<SaveState, string> = {
 	failed: "Not saved",
 };
 
-function ChecksChip({ checks }: { checks: CommitChecks | null }) {
-	if (!checks || checks.state === "None") return null;
-	const color =
-		checks.state === "Success" ? "success" : checks.state === "Failure" ? "error" : "default";
-	const label =
-		checks.state === "Success"
-			? "checks passed"
-			: checks.state === "Failure"
-				? "checks failed"
-				: "checks running";
-	return checks.targetUrl ? (
-		<Chip
-			size="small"
-			variant="outlined"
-			color={color}
-			label={label}
-			component="a"
-			href={checks.targetUrl}
-			target="_blank"
-			rel="noreferrer"
-			clickable
-		/>
-	) : (
-		<Chip size="small" variant="outlined" color={color} label={label} />
+const checkLabels: Record<CommitChecks["state"], string> = {
+	None: "",
+	Pending: "checks running",
+	Success: "checks passed",
+	Failure: "checks failed",
+};
+
+/** Branches are ansible-ui/<user>/<slug>: the status bar shows the slug, the tooltip the rest. */
+const shortBranch = (branch: string) => branch.split("/").slice(2).join("/") || branch;
+
+type Dialog = "run" | "rebase" | "abandon" | "create" | "rename" | "delete" | "addHost" | null;
+
+/** Open tabs survive reloads within the browser tab, per Brouillon. */
+function useOpenTabs(draftId: string, selected: string | null) {
+	const key = `ansible-ui:draft-tabs:${draftId}`;
+	const [tabs, setTabs] = useState<string[]>(() => {
+		try {
+			const stored: unknown = JSON.parse(sessionStorage.getItem(key) ?? "[]");
+			return Array.isArray(stored)
+				? stored.filter((path): path is string => typeof path === "string")
+				: [];
+		} catch {
+			return [];
+		}
+	});
+	useEffect(() => {
+		if (selected)
+			setTabs((current) => (current.includes(selected) ? current : [...current, selected]));
+	}, [selected]);
+	useEffect(() => {
+		try {
+			sessionStorage.setItem(key, JSON.stringify(tabs));
+		} catch {
+			/* Storage may be disabled. */
+		}
+	}, [key, tabs]);
+	return [tabs, setTabs] as const;
+}
+
+function ChangeList({
+	changes,
+	selected,
+	onSelect,
+}: {
+	changes: DraftFileChange[];
+	selected: string | null;
+	onSelect: (path: string) => void;
+}) {
+	const theme = useTheme();
+	if (changes.length === 0)
+		return (
+			<Typography variant="body2" sx={{ color: "text.secondary", px: 1.75, pb: 1.5 }}>
+				No changes yet. Edits save as you type.
+			</Typography>
+		);
+	return (
+		<Box sx={{ pb: 1 }}>
+			{changes.map((change) => {
+				const color = changeColor(theme, change.kind);
+				return (
+					<Box
+						key={change.path}
+						component="button"
+						type="button"
+						title={
+							change.previousPath
+								? `${change.path} (from ${change.previousPath})`
+								: change.path
+						}
+						onClick={() => onSelect(change.path)}
+						sx={{
+							all: "unset",
+							boxSizing: "border-box",
+							width: "100%",
+							display: "flex",
+							alignItems: "center",
+							gap: 1,
+							px: 1.75,
+							minHeight: 28,
+							cursor: "pointer",
+							...mono,
+							fontSize: 12.5,
+							color: "text.primary",
+							bgcolor: change.path === selected ? "background.raised" : "transparent",
+							"&:hover": { bgcolor: "action.hover" },
+						}}
+					>
+						<Box
+							component="span"
+							sx={{
+								flex: 1,
+								minWidth: 0,
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+								whiteSpace: "nowrap",
+								direction: "rtl",
+								textAlign: "left",
+							}}
+						>
+							{change.path}
+						</Box>
+						<Box component="span" sx={{ color, fontWeight: 700, fontSize: 11.5 }}>
+							{changeLetter[change.kind]}
+						</Box>
+					</Box>
+				);
+			})}
+		</Box>
 	);
 }
 
-type Dialog = "commit" | "run" | "rebase" | "abandon" | "create" | "rename" | "delete" | null;
+function SideHeading({ children, action }: { children: string; action?: ReactNode }) {
+	return (
+		<Box
+			sx={{
+				display: "flex",
+				alignItems: "center",
+				px: 1.75,
+				pt: 1.25,
+				pb: 0.5,
+				minHeight: 34,
+			}}
+		>
+			<Typography sx={{ flex: 1, fontSize: 12, fontWeight: 650, color: "text.secondary" }}>
+				{children}
+			</Typography>
+			{action}
+		</Box>
+	);
+}
 
 export function DraftWorkspacePage() {
 	const { id = "" } = useParams<{ id: string }>();
-	const theme = useTheme();
+	return <DraftWorkspace key={id} id={id} />;
+}
+
+function DraftWorkspace({ id }: { id: string }) {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { enqueueSnackbar } = useSnackbar();
 	const [params, setParams] = useSearchParams();
 	const selected = params.get("path");
+	const diff = params.get("view") === "diff";
 
 	const detail = useDraft(id);
 	const isOpen = detail.data?.draft.status === "Open";
@@ -105,13 +235,26 @@ export function DraftWorkspacePage() {
 	const createFile = useWriteDraftFile(id);
 	const renameFile = useRenameDraftFile(id);
 	const deleteFile = useDeleteDraftFile(id);
+	const validate = useValidateDraftInventory(id);
 
-	const [tab, setTab] = useState<"files" | "changes">("files");
-	const [diff, setDiff] = useState(false);
+	const [tabs, setTabs] = useOpenTabs(id, selected);
 	const [dialog, setDialog] = useState<Dialog>(null);
+	const [composing, setComposing] = useState(false);
 	const [menu, setMenu] = useState<HTMLElement | null>(null);
 	const [saveState, setSaveState] = useState<SaveState>("saved");
+	const [cursor, setCursor] = useState<EditorCursor | null>(null);
+	const [check, setCheck] = useState<InventoryValidation | null>(
+		() => (location.state as InventoryCheckState | null)?.validation ?? null,
+	);
 	const flushRef = useRef<(() => Promise<void>) | null>(null);
+	// Add host lands here with the check it ran; a later navigation without state keeps the panel.
+	const handoff = location.state as InventoryCheckState | null;
+	const [addedHost, setAddedHost] = useState<string | null>(handoff?.host ?? null);
+	useEffect(() => {
+		if (!handoff) return;
+		setCheck(handoff.validation);
+		setAddedHost(handoff.host ?? null);
+	}, [handoff]);
 
 	const workspace = detail.data?.workspace ?? null;
 	const changes = useMemo(
@@ -122,6 +265,7 @@ export function DraftWorkspacePage() {
 		[workspace],
 	);
 	const selectedChange = selected ? changes.get(selected) : undefined;
+	const inventoryChanged = [...changes.keys()].some((path) => path.startsWith("inventory/"));
 
 	// Typed text must reach the Rebond before the tab closes.
 	useEffect(() => {
@@ -131,32 +275,70 @@ export function DraftWorkspacePage() {
 		return () => window.removeEventListener("beforeunload", warn);
 	}, [saveState]);
 
-	const select = useCallback(
-		(path: string | null) => {
-			setSaveState("saved");
-			setParams(path ? { path } : {}, { replace: true });
+	const navigateTo = useCallback(
+		(path: string | null, view: "edit" | "diff" = "edit") => {
+			void (async () => {
+				await flushRef.current?.();
+				setSaveState("saved");
+				setCursor(null);
+				setParams(path ? (view === "diff" ? { path, view } : { path }) : {}, {
+					replace: true,
+				});
+			})().catch((error: unknown) =>
+				enqueueSnackbar(errorMessage(error), { variant: "error" }),
+			);
 		},
-		[setParams],
+		[setParams, enqueueSnackbar],
 	);
+
+	const closeTab = (path: string) => {
+		void (async () => {
+			if (path === selected) await flushRef.current?.();
+			const index = tabs.indexOf(path);
+			const remaining = tabs.filter((tab) => tab !== path);
+			setTabs(remaining);
+			if (path === selected) {
+				const next = remaining[Math.min(index, remaining.length - 1)];
+				setParams(next ? { path: next } : {}, { replace: true });
+				setSaveState("saved");
+				setCursor(null);
+			}
+		})().catch((error: unknown) => enqueueSnackbar(errorMessage(error), { variant: "error" }));
+	};
 
 	const fail = (action: string) => (error: unknown) =>
 		enqueueSnackbar(`${action}: ${errorMessage(error)}`, { variant: "error" });
 
 	/** Server-side Git actions see only what reached the worktree. */
-	const flushThen = async (next: () => void) => {
+	const flush = useCallback(async () => {
 		await flushRef.current?.();
-		next();
+	}, []);
+	const flushThen = async (next: () => void) => {
+		try {
+			await flush();
+			next();
+		} catch (error) {
+			enqueueSnackbar(errorMessage(error), { variant: "error" });
+		}
 	};
+
+	const runCheck = () =>
+		void flushThen(() =>
+			validate.mutate(undefined, {
+				onSuccess: setCheck,
+				onError: fail("Could not check the inventory"),
+			}),
+		);
 
 	if (detail.error)
 		return (
-			<Box sx={{ px: { xs: 2, md: 5 }, py: 4 }}>
+			<Box sx={{ p: 4 }}>
 				<Alert severity="error">Draft not found: {errorMessage(detail.error)}</Alert>
 			</Box>
 		);
 
-	const data: DraftDetail | undefined = detail.data;
-	const draft = data?.draft;
+	const draft = detail.data?.draft;
+	const checks = detail.data?.checks ?? null;
 	const pushed = workspace?.pushedRevision ?? null;
 	const upToDate =
 		!!workspace && !workspace.hasUncommittedChanges && pushed === workspace.headRevision;
@@ -165,321 +347,321 @@ export function DraftWorkspacePage() {
 	const nothingToPush = upToDate && !!draft?.pullRequestNumber;
 	const runnable = upToDate && !!pushed && !busy && !blocked;
 
-	return (
-		<Box
-			sx={{
-				px: { xs: 2, md: 5 },
-				py: 3,
-				display: "flex",
-				flexDirection: "column",
-				gap: 2,
-				height: { md: "100dvh" },
-			}}
-		>
-			<Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+	const header = (
+		<WorkbenchHeader
+			leading={
 				<Tooltip title="Back to drafts">
 					<IconButton component={RouterLink} to="/drafts" size="small">
 						<ArrowBackRoundedIcon fontSize="small" />
 					</IconButton>
 				</Tooltip>
-				{!draft ? (
-					<Skeleton width={320} height={30} sx={{ transform: "none" }} />
-				) : (
+			}
+			title={draft ? draft.title : <Skeleton width={260} sx={{ transform: "none" }} />}
+			badge={draft && <DraftStatusChip status={draft.status} />}
+			actions={
+				isOpen &&
+				workspace && (
 					<>
-						<Typography variant="h4" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-							{draft.title}
-						</Typography>
-						<DraftStatusChip status={draft.status} />
-						<Box sx={{ flex: 1 }} />
-						{isOpen && workspace && (
-							<>
-								{workspace.behind > 0 && (
-									<Tooltip
-										title={
-											workspace.hasUncommittedChanges
-												? "Commit pending edits first"
-												: "Rebase on the latest main and force-push this branch"
-										}
-									>
-										<span>
-											<Button
-												variant="outlined"
-												color="inherit"
-												startIcon={<SyncRoundedIcon />}
-												disabled={workspace.hasUncommittedChanges || busy}
-												onClick={() => setDialog("rebase")}
-											>
-												Update from main
-											</Button>
-										</span>
-									</Tooltip>
-								)}
-								<Tooltip title={runnable ? "" : "Commit & push to run this draft"}>
-									<span>
-										<Button
-											variant="outlined"
-											color="secondary"
-											startIcon={<PlayArrowRoundedIcon />}
-											disabled={!runnable}
-											onClick={() => setDialog("run")}
-										>
-											Run
-										</Button>
-									</span>
-								</Tooltip>
-								<Button
-									variant="contained"
-									startIcon={<CloudUploadRoundedIcon />}
-									disabled={nothingToPush || blocked}
-									loading={commit.isPending}
-									onClick={() => void flushThen(() => setDialog("commit"))}
-								>
-									Commit & push
-								</Button>
-								<IconButton
-									aria-label="More actions"
-									onClick={(event) => setMenu(event.currentTarget)}
-								>
-									<MoreVertRoundedIcon />
-								</IconButton>
-								<Menu
-									anchorEl={menu}
-									open={menu !== null}
-									onClose={() => setMenu(null)}
-								>
-									<MenuItem
-										sx={{ color: "error.main" }}
-										onClick={() => {
-											setMenu(null);
-											setDialog("abandon");
-										}}
-									>
-										Abandon draft
-									</MenuItem>
-								</Menu>
-							</>
+						{inventoryChanged && (
+							<Button
+								variant="outlined"
+								color="inherit"
+								startIcon={<FactCheckOutlinedIcon />}
+								loading={validate.isPending}
+								onClick={runCheck}
+							>
+								Validate inventory
+							</Button>
 						)}
-					</>
-				)}
-			</Box>
-
-			{draft && (
-				<Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-					<Chip
-						size="small"
-						variant="outlined"
-						icon={<CallSplitRoundedIcon />}
-						label={draft.branch}
-						sx={{ color: "secondary.main", borderColor: "divider", maxWidth: "100%" }}
-					/>
-					{draft.pullRequestUrl && (
-						<Chip
-							size="small"
-							variant="outlined"
-							label={`pull request #${draft.pullRequestNumber}`}
-							component="a"
-							href={draft.pullRequestUrl}
-							target="_blank"
-							rel="noreferrer"
-							clickable
-						/>
-					)}
-					<ChecksChip checks={data?.checks ?? null} />
-					{workspace && (
-						<Typography
-							sx={{ color: "text.secondary", fontFamily: fontMono, fontSize: 12 }}
+						{workspace.behind > 0 && (
+							<Tooltip
+								title={
+									workspace.hasUncommittedChanges
+										? "Commit pending edits first"
+										: "Rebase on the latest main and force-push this branch"
+								}
+							>
+								<span>
+									<Button
+										variant="outlined"
+										color="inherit"
+										startIcon={<SyncRoundedIcon />}
+										disabled={workspace.hasUncommittedChanges || busy}
+										onClick={() => setDialog("rebase")}
+									>
+										Update from main
+									</Button>
+								</span>
+							</Tooltip>
+						)}
+						<Tooltip title={runnable ? "" : "Commit & push to run this draft"}>
+							<span>
+								<Button
+									variant="outlined"
+									color="inherit"
+									startIcon={<PlayArrowRoundedIcon />}
+									disabled={!runnable}
+									onClick={() => setDialog("run")}
+								>
+									Run
+								</Button>
+							</span>
+						</Tooltip>
+						<Button
+							variant="contained"
+							disabled={nothingToPush || blocked}
+							onClick={() => void flushThen(() => setComposing(true))}
 						>
-							{workspace.ahead} ahead, {workspace.behind} behind main
-							{pushed ? `, pushed ${pushed.slice(0, 8)}` : ", not pushed yet"}
-						</Typography>
-					)}
-				</Box>
-			)}
-
-			{draft && !isOpen && (
-				<Alert severity={draft.status === "Merged" ? "success" : "info"} variant="outlined">
-					{draft.status === "Merged"
-						? "Merged. The Synchronisation brings its changes to the Rebond."
-						: draft.status === "Closed"
-							? "Its pull request was closed without merging."
-							: "Abandoned."}{" "}
-					{draft.pullRequestUrl && (
-						<Link href={draft.pullRequestUrl} target="_blank" rel="noreferrer">
-							Open the pull request
-						</Link>
-					)}
-				</Alert>
-			)}
-
-			{isOpen && (
-				<SplitPanel
-					side={
-						<>
-							<Box
-								sx={{
-									display: "flex",
-									alignItems: "center",
-									borderBottom: 1,
-									borderColor: "divider",
-									pr: 1,
+							Commit & push
+						</Button>
+						<IconButton
+							aria-label="More actions"
+							size="small"
+							onClick={(event) => setMenu(event.currentTarget)}
+						>
+							<MoreVertRoundedIcon fontSize="small" />
+						</IconButton>
+						<Menu anchorEl={menu} open={menu !== null} onClose={() => setMenu(null)}>
+							<MenuItem
+								onClick={() => {
+									setMenu(null);
+									setDialog("create");
 								}}
 							>
-								<Tabs
-									value={tab}
-									onChange={(_, value: "files" | "changes") => setTab(value)}
-									sx={{
-										flex: 1,
-										minHeight: 44,
-										"& .MuiTab-root": { minHeight: 44 },
-									}}
-								>
-									<Tab value="files" label="Files" />
-									<Tab
-										value="changes"
-										label={`Changes${changes.size ? ` ${changes.size}` : ""}`}
-									/>
-								</Tabs>
-								<Tooltip title="New file">
-									<IconButton size="small" onClick={() => setDialog("create")}>
-										<NoteAddOutlinedIcon fontSize="small" />
-									</IconButton>
-								</Tooltip>
-							</Box>
-							<Box sx={{ overflow: "auto", flex: 1 }}>
-								{tab === "files" ? (
-									files.data ? (
-										<FileTree
-											files={files.data}
-											changes={changes}
-											selected={selected}
-											onSelect={select}
-										/>
-									) : (
-										Array.from({ length: 10 }, (_, index) => (
-											<Skeleton
-												key={index}
-												height={26}
-												sx={{ mx: 2, my: 0.5, transform: "none" }}
-											/>
-										))
-									)
-								) : workspace && workspace.changes.length === 0 ? (
-									<Typography
-										variant="body2"
-										sx={{ color: "text.secondary", px: 2, py: 2 }}
-									>
-										No changes yet. Edits save as you type.
-									</Typography>
-								) : (
-									workspace?.changes.map((change) => {
-										const color = changeColor(theme, change.kind);
-										return (
-											<Box
-												key={change.path}
-												component="button"
-												type="button"
-												onClick={() => {
-													select(change.path);
-													setDiff(true);
-												}}
-												sx={{
-													appearance: "none",
-													border: 0,
-													width: "100%",
-													display: "flex",
-													gap: 1,
-													alignItems: "baseline",
-													px: 2,
-													py: 0.9,
-													textAlign: "left",
-													cursor: "pointer",
-													font: "inherit",
-													fontFamily: fontMono,
-													fontSize: 12.5,
-													color: "text.primary",
-													boxShadow: `inset 3px 0 0 ${color}`,
-													bgcolor:
-														change.path === selected
-															? "action.selected"
-															: "transparent",
-													"&:hover": { bgcolor: "action.hover" },
-												}}
-											>
-												<Box
-													component="span"
-													sx={{ color, fontWeight: 700 }}
-												>
-													{changeLetter[change.kind]}
-												</Box>
-												<Box
-													component="span"
-													sx={{ overflowWrap: "anywhere" }}
-												>
-													{change.path}
-													{change.previousPath && (
-														<Box
-															component="span"
-															sx={{
-																display: "block",
-																color: "text.secondary",
-																fontSize: 11,
-															}}
-														>
-															from {change.previousPath}
-														</Box>
-													)}
-												</Box>
-											</Box>
-										);
-									})
-								)}
-							</Box>
-						</>
+								<ListItemIcon>
+									<NoteAddOutlinedIcon fontSize="small" />
+								</ListItemIcon>
+								<ListItemText>New file</ListItemText>
+							</MenuItem>
+							<MenuItem
+								onClick={() => {
+									setMenu(null);
+									setDialog("addHost");
+								}}
+							>
+								<ListItemIcon>
+									<DnsRoundedIcon fontSize="small" />
+								</ListItemIcon>
+								<ListItemText>Add host to inventory</ListItemText>
+							</MenuItem>
+							<MenuItem
+								sx={{ color: "error.main" }}
+								onClick={() => {
+									setMenu(null);
+									setDialog("abandon");
+								}}
+							>
+								<ListItemIcon sx={{ color: "inherit" }}>
+									<DeleteOutlineRoundedIcon fontSize="small" />
+								</ListItemIcon>
+								<ListItemText>Abandon draft</ListItemText>
+							</MenuItem>
+						</Menu>
+					</>
+				)
+			}
+		/>
+	);
+
+	const status = draft && (
+		<StatusBar>
+			<StatusItem tooltip={draft.branch}>
+				⎇ <strong>{shortBranch(draft.branch)}</strong>
+			</StatusItem>
+			{workspace && (
+				<StatusItem tone={workspace.behind > 0 ? "warning" : undefined}>
+					{workspace.behind > 0
+						? `${workspace.behind} behind main`
+						: "up to date with main"}
+				</StatusItem>
+			)}
+			{workspace && (
+				<StatusItem>
+					{workspace.changes.length}{" "}
+					{workspace.changes.length === 1 ? "change" : "changes"}
+					{pushed
+						? upToDate
+							? `, pushed ${pushed.slice(0, 8)}`
+							: ", unpushed edits"
+						: ", not pushed"}
+				</StatusItem>
+			)}
+			{draft.pullRequestUrl && (
+				<StatusItem href={draft.pullRequestUrl} tooltip="Open the pull request">
+					PR <strong>#{draft.pullRequestNumber}</strong>
+				</StatusItem>
+			)}
+			{checks && checks.state !== "None" && (
+				<StatusItem
+					tone={
+						checks.state === "Success"
+							? "success"
+							: checks.state === "Failure"
+								? "error"
+								: undefined
 					}
+					href={checks.targetUrl ?? undefined}
 				>
-					{selected ? (
-						<>
-							<PaneBar>
-								<Typography
-									noWrap
-									sx={{
-										fontFamily: fontMono,
-										fontSize: 12.5,
-										flex: 1,
-										color: selectedChange
-											? changeColor(theme, selectedChange)
-											: "text.primary",
-									}}
-								>
-									{selected}
-								</Typography>
-								{selectedChange !== "Deleted" && (
+					{checkLabels[checks.state]}
+				</StatusItem>
+			)}
+			{statusSpacer}
+			{check && (
+				<StatusItem
+					tone={check.valid ? "success" : "error"}
+					onClick={() => setCheck(check)}
+				>
+					{check.valid ? "inventory valid" : "inventory invalid"}
+				</StatusItem>
+			)}
+			{selected && selectedChange !== "Deleted" && (
+				<StatusItem
+					tone={blocked ? "error" : saveState === "saved" ? "success" : undefined}
+				>
+					<span aria-live="polite">{saveLabels[saveState]}</span>
+				</StatusItem>
+			)}
+			{selected && <StatusItem>{languageFor(selected)}</StatusItem>}
+			{cursor && !diff && (
+				<StatusItem>
+					Ln {cursor.line}, Col {cursor.column}
+				</StatusItem>
+			)}
+		</StatusBar>
+	);
+
+	const side = isOpen && (
+		<>
+			<SideHeading>{`Changes${changes.size ? ` · ${changes.size}` : ""}`}</SideHeading>
+			{workspace ? (
+				<ChangeList
+					changes={workspace.changes}
+					selected={selected}
+					onSelect={(path) => navigateTo(path, "diff")}
+				/>
+			) : (
+				<Skeleton height={24} sx={{ mx: 1.75, transform: "none" }} />
+			)}
+			<SideHeading
+				action={
+					<Tooltip title="New file">
+						<IconButton size="small" onClick={() => setDialog("create")}>
+							<NoteAddOutlinedIcon sx={{ fontSize: 17 }} />
+						</IconButton>
+					</Tooltip>
+				}
+			>
+				Ansible
+			</SideHeading>
+			{files.data ? (
+				<FileTree
+					files={files.data}
+					changes={changes}
+					selected={selected}
+					onSelect={(path) => navigateTo(path)}
+				/>
+			) : (
+				Array.from({ length: 10 }, (_, index) => (
+					<Skeleton
+						key={index}
+						height={22}
+						sx={{ mx: 1.75, my: 0.5, transform: "none" }}
+					/>
+				))
+			)}
+		</>
+	);
+
+	return (
+		<>
+			<Workbench
+				header={header}
+				tabs={
+					isOpen && (
+						<FileTabs
+							tabs={tabs.map((path) => ({ path, changed: changes.has(path) }))}
+							active={selected}
+							onSelect={(path) => navigateTo(path)}
+							onClose={closeTab}
+						/>
+					)
+				}
+				side={side || undefined}
+				status={status}
+				overlay={
+					composing &&
+					draft &&
+					workspace && (
+						<CommitComposer
+							branch={shortBranch(draft.branch)}
+							changes={workspace.changes}
+							opensPullRequest={!draft.pullRequestNumber}
+							busy={commit.isPending}
+							onClose={() => setComposing(false)}
+							onCommit={(message) =>
+								void flushThen(() =>
+									commit.mutate(message, {
+										onSuccess: (updated) => {
+											setComposing(false);
+											enqueueSnackbar(
+												draft.pullRequestNumber
+													? `Pushed to ${updated.branch}`
+													: `Pushed and opened pull request #${updated.pullRequestNumber}`,
+												{ variant: "success" },
+											);
+										},
+										onError: fail("Could not push"),
+									}),
+								)
+							}
+						/>
+					)
+				}
+			>
+				{draft && !isOpen ? (
+					<Box sx={{ p: 3 }}>
+						<Alert
+							severity={draft.status === "Merged" ? "success" : "info"}
+							variant="outlined"
+						>
+							{draft.status === "Merged"
+								? "Merged. The Synchronisation brings its changes to the Rebond."
+								: draft.status === "Closed"
+									? "Its pull request was closed without merging."
+									: "Abandoned."}{" "}
+							{draft.pullRequestUrl && (
+								<Link href={draft.pullRequestUrl} target="_blank" rel="noreferrer">
+									Open the pull request
+								</Link>
+							)}
+						</Alert>
+					</Box>
+				) : selected ? (
+					<>
+						<Breadcrumbs
+							path={selected}
+							trail={diff ? [] : (cursor?.trail ?? [])}
+							actions={
+								selectedChange !== "Deleted" && (
 									<>
-										<Typography
-											aria-live="polite"
-											sx={{
-												fontSize: 12,
-												color:
-													saveState === "conflict" ||
-													saveState === "failed"
-														? "error.main"
-														: "text.secondary",
-											}}
-										>
-											{saveLabels[saveState]}
-										</Typography>
 										<ToggleButtonGroup
 											size="small"
 											exclusive
 											value={diff ? "diff" : "edit"}
 											onChange={(_, value: "edit" | "diff" | null) =>
-												value && setDiff(value === "diff")
+												value && navigateTo(selected, value)
 											}
 										>
-											<ToggleButton value="edit" sx={{ px: 1.25, py: 0.25 }}>
+											<ToggleButton
+												value="edit"
+												sx={{ px: 1.25, py: 0.1, fontSize: 12 }}
+											>
 												Edit
 											</ToggleButton>
-											<ToggleButton value="diff" sx={{ px: 1.25, py: 0.25 }}>
+											<ToggleButton
+												value="diff"
+												sx={{ px: 1.25, py: 0.1, fontSize: 12 }}
+											>
 												Diff
 											</ToggleButton>
 										</ToggleButtonGroup>
@@ -488,7 +670,9 @@ export function DraftWorkspacePage() {
 												size="small"
 												onClick={() => setDialog("rename")}
 											>
-												<DriveFileRenameOutlineRoundedIcon fontSize="small" />
+												<DriveFileRenameOutlineRoundedIcon
+													sx={{ fontSize: 17 }}
+												/>
 											</IconButton>
 										</Tooltip>
 										<Tooltip title="Delete">
@@ -496,58 +680,47 @@ export function DraftWorkspacePage() {
 												size="small"
 												onClick={() => setDialog("delete")}
 											>
-												<DeleteOutlineRoundedIcon fontSize="small" />
+												<DeleteOutlineRoundedIcon sx={{ fontSize: 17 }} />
 											</IconButton>
 										</Tooltip>
 									</>
-								)}
-							</PaneBar>
-							{selectedChange === "Deleted" ? (
-								<DeletedFileDiff draftId={id} path={selected} />
-							) : (
-								<DraftFileEditor
-									key={selected}
-									draftId={id}
-									path={selected}
-									diff={diff}
-									flushRef={flushRef}
-									onSaveState={setSaveState}
-								/>
-							)}
-						</>
-					) : (
-						<EmptyState
-							icon={<DescriptionOutlinedIcon />}
-							title="Pick a file"
-							hint="Edits save to the draft as you type. Commit & push when the change is ready for review."
+								)
+							}
 						/>
-					)}
-				</SplitPanel>
-			)}
+						{selectedChange === "Deleted" ? (
+							<DeletedFileDiff draftId={id} path={selected} />
+						) : (
+							<DraftFileEditor
+								key={selected}
+								draftId={id}
+								path={selected}
+								diff={diff}
+								flushRef={flushRef}
+								onSaveState={setSaveState}
+								onCursor={setCursor}
+							/>
+						)}
+					</>
+				) : (
+					<EmptyState
+						icon={<DescriptionOutlinedIcon />}
+						title="Pick a file"
+						hint="Edits save to the draft as you type. Commit & push when the change is ready for review."
+					/>
+				)}
+				{check && isOpen && (
+					<InventoryCheckPanel
+						validation={check}
+						highlight={addedHost}
+						busy={validate.isPending}
+						onRerun={runCheck}
+						onClose={() => setCheck(null)}
+					/>
+				)}
+			</Workbench>
 
 			{draft && workspace && (
 				<>
-					<CommitDialog
-						open={dialog === "commit"}
-						branch={draft.branch}
-						opensPullRequest={!draft.pullRequestNumber}
-						busy={commit.isPending}
-						onClose={() => setDialog(null)}
-						onCommit={(message) =>
-							commit.mutate(message, {
-								onSuccess: (updated) => {
-									setDialog(null);
-									enqueueSnackbar(
-										draft.pullRequestNumber
-											? `Pushed to ${updated.branch}`
-											: `Pushed and opened pull request #${updated.pullRequestNumber}`,
-										{ variant: "success" },
-									);
-								},
-								onError: fail("Could not push"),
-							})
-						}
-					/>
 					{pushed && (
 						<DraftLaunchDialog
 							draft={draft}
@@ -557,6 +730,12 @@ export function DraftWorkspacePage() {
 							onClose={() => setDialog(null)}
 						/>
 					)}
+					<AddHostDialog
+						open={dialog === "addHost"}
+						draftId={id}
+						beforeWrite={flush}
+						onClose={() => setDialog(null)}
+					/>
 					<ConfirmDialog
 						open={dialog === "rebase"}
 						title="Update from main"
@@ -620,9 +799,7 @@ export function DraftWorkspacePage() {
 								{
 									onSuccess: () => {
 										setDialog(null);
-										setTab("files");
-										setDiff(false);
-										select(path);
+										navigateTo(path);
 									},
 									onError: fail("Could not create the file"),
 								},
@@ -645,7 +822,12 @@ export function DraftWorkspacePage() {
 											{
 												onSuccess: () => {
 													setDialog(null);
-													select(newPath);
+													setTabs((current) =>
+														current.map((tab) =>
+															tab === selected ? newPath : tab,
+														),
+													);
+													navigateTo(newPath);
 												},
 												onError: fail("Could not rename"),
 											},
@@ -661,13 +843,15 @@ export function DraftWorkspacePage() {
 								busy={deleteFile.isPending}
 								onClose={() => setDialog(null)}
 								onConfirm={() =>
-									deleteFile.mutate(selected, {
-										onSuccess: () => {
-											setDialog(null);
-											select(null);
-										},
-										onError: fail("Could not delete"),
-									})
+									void flushThen(() =>
+										deleteFile.mutate(selected, {
+											onSuccess: () => {
+												setDialog(null);
+												closeTab(selected);
+											},
+											onError: fail("Could not delete"),
+										}),
+									)
 								}
 							>
 								Deletes {selected} from this draft. It stays on main until the pull
@@ -677,7 +861,7 @@ export function DraftWorkspacePage() {
 					)}
 				</>
 			)}
-		</Box>
+		</>
 	);
 }
 

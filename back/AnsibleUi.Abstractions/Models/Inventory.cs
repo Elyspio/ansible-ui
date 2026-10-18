@@ -38,3 +38,11 @@ public sealed record InventoryHostFacts(
 	string? OsFamily,
 	string? Error,
 	TimeSpan? Uptime);
+
+/// <summary>Structure of a Brouillon inventory as Ansible parses it, or why it does not parse. Never carries vars.</summary>
+/// <param name="Error">Tail of the ansible-inventory error output when <paramref name="Valid" /> is false.</param>
+public sealed record InventoryValidation(
+	bool Valid,
+	string? Error,
+	IReadOnlyList<InventoryGroup> Groups,
+	IReadOnlyList<string> Hosts);

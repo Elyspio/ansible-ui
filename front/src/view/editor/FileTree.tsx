@@ -3,7 +3,7 @@ import { Box, useTheme } from "@mui/material";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import type { DraftFileChangeKind } from "@/core/api/types";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import { changeColor, changeLabel, changeLetter } from "./changes";
 
 interface Folder {
@@ -86,7 +86,7 @@ export function FileTree({
 		textAlign: "left",
 		cursor: "pointer",
 		font: "inherit",
-		fontFamily: fontMono,
+		...mono,
 		fontSize: 12.5,
 		color: "text.primary",
 		bgcolor: "transparent",

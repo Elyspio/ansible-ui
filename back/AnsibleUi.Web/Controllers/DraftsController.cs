@@ -72,6 +72,12 @@ public sealed class DraftsController(DraftService drafts, RunLauncher launcher) 
 		return NoContent();
 	}
 
+	[HttpPost("{id:guid}/inventory/validate")]
+	public async Task<IActionResult> ValidateInventory(Guid id, CancellationToken ct)
+	{
+		return Ok(await drafts.ValidateInventoryAsync(id, ct));
+	}
+
 	[HttpPost("{id:guid}/commit")]
 	public async Task<IActionResult> Commit(Guid id, CommitRequest request, CancellationToken ct)
 	{

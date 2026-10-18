@@ -266,6 +266,9 @@ public sealed class RepositorySynchronizerTests
 		public Task<Inventory> GetInventoryAsync(CancellationToken ct = default) =>
 			Task.FromResult(Inventory);
 
+		public Task<InventoryValidation> ValidateInventoryAsync(string workingDirectory, CancellationToken ct = default) =>
+			throw new NotSupportedException();
+
 		public Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default)
 		{
 			FactsCalls++;

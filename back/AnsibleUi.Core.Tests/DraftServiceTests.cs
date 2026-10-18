@@ -126,6 +126,20 @@ public sealed class DraftServiceTests
 	}
 
 	[Fact]
+	public async Task Inventory_validation_runs_in_the_draft_worktree_and_only_while_open()
+	{
+		var (service, _, _, _) = Create();
+		var draft = await service.CreateAsync("Add host", User, TestContext.Current.CancellationToken);
+
+		var validation = await service.ValidateInventoryAsync(draft.Id, TestContext.Current.CancellationToken);
+		await service.AbandonAsync(draft.Id, TestContext.Current.CancellationToken);
+
+		validation.Hosts.ShouldBe([$"/drafts/{draft.Id:N}/ansible"]);
+		(await Should.ThrowAsync<HttpException>(() =>
+			service.ValidateInventoryAsync(draft.Id, TestContext.Current.CancellationToken))).StatusCode.ShouldBe(409);
+	}
+
+	[Fact]
 	public async Task Closed_drafts_refuse_edits()
 	{
 		var (service, _, _, _) = Create();
@@ -156,7 +170,7 @@ public sealed class DraftServiceTests
 		var repository = new FakeDraftRepository();
 		var workspace = new FakeWorkspace();
 		var forge = new FakeForge();
-		return (new DraftService(repository, workspace, forge, new NullNotifier(), NullLogger<DraftService>.Instance),
+		return (new DraftService(repository, workspace, forge, new FakeAnsible(), new NullNotifier(), NullLogger<DraftService>.Instance),
 			repository, workspace, forge);
 	}
 
@@ -183,6 +197,7 @@ public sealed class DraftServiceTests
 		public List<(Guid, bool)> Removed { get; } = [];
 
 		public Task<string> CreateAsync(Guid draftId, string branch, CancellationToken ct = default) => Task.FromResult("base");
+		public string AnsibleDirectoryOf(Guid draftId) => $"/drafts/{draftId:N}/ansible";
 		public Task RemoveAsync(Guid draftId, string branch, bool deleteRemoteBranch, CancellationToken ct = default)
 		{
 			Removed.Add((draftId, deleteRemoteBranch));
@@ -235,6 +250,18 @@ public sealed class DraftServiceTests
 		}
 		public Task<CommitChecks> GetChecksAsync(string revision, CancellationToken ct = default) =>
 			Task.FromResult(new CommitChecks(CommitCheckState.None, null));
+	}
+
+	private sealed class FakeAnsible : IAnsibleRebond
+	{
+		public Task<IReadOnlyList<Playbook>> ListPlaybooksAsync(CancellationToken ct = default) => throw new NotSupportedException();
+		public Task<Inventory> GetInventoryAsync(CancellationToken ct = default) => throw new NotSupportedException();
+		public Task<InventoryValidation> ValidateInventoryAsync(string workingDirectory, CancellationToken ct = default) =>
+			Task.FromResult(new InventoryValidation(true, null, [], [workingDirectory]));
+		public Task<IReadOnlyList<InventoryHostFacts>> GetInventoryHostFactsAsync(CancellationToken ct = default) => throw new NotSupportedException();
+		public Task<string?> GetHostVarsAsync(string host, CancellationToken ct = default) => throw new NotSupportedException();
+		public Task<int> ExecutePlaybookAsync(string playbook, RunOptions options, string? workingDirectory, Func<string, Task> onOutput, CancellationToken ct) =>
+			throw new NotSupportedException();
 	}
 
 	private sealed class NullNotifier : IRealtimeNotifier

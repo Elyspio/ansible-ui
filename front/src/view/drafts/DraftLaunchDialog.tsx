@@ -15,7 +15,7 @@ import { useSnackbar } from "notistack";
 import { useDraftPlaybooks, useRuns } from "@/core/api/queries";
 import { errorMessage, useSubmitDraftRun } from "@/core/api/mutations";
 import type { Draft, Playbook } from "@/core/api/types";
-import { fontMono } from "@/config/theme";
+import { mono } from "@/config/theme";
 import {
 	defaultRunOptions,
 	RunOptionsFields,
@@ -83,11 +83,11 @@ export function DraftLaunchDialog({
 			<DialogContent sx={{ display: "grid", gap: 2.5, pt: "8px !important" }}>
 				<Alert severity="warning" variant="outlined">
 					Runs unmerged code from{" "}
-					<Box component="span" sx={{ fontFamily: fontMono }}>
+					<Box component="span" sx={{ ...mono }}>
 						{draft.branch}
 					</Box>{" "}
 					at{" "}
-					<Box component="span" sx={{ fontFamily: fontMono }}>
+					<Box component="span" sx={{ ...mono }}>
 						{revision.slice(0, 8)}
 					</Box>{" "}
 					on your managed hosts. Nobody has reviewed it yet.
