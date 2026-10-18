@@ -31,6 +31,17 @@ export function useCancelRun() {
 	});
 }
 
+export function useRepeatRun() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (id: string) => (await http.post<Run>(`/api/runs/${id}/repeat`)).data,
+		onSuccess: (run) => {
+			qc.setQueryData(qk.run(run.id), run);
+			void qc.invalidateQueries({ queryKey: qk.runs });
+		},
+	});
+}
+
 export function useSynchronizeRepository() {
 	const qc = useQueryClient();
 	return useMutation({

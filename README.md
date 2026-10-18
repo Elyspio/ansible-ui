@@ -5,6 +5,9 @@ Web UI to launch and track Ansible playbook runs on a remote Rebond, over SSH.
 - **Launch** a playbook with `--limit` (picked from your inventory), `--check` and `--diff`.
 - **Watch** the live output streamed from the Rebond.
 - **Browse** the full run history with per-host recap badges.
+- **Run again** from history or Run details to queue a new job with the same playbook, limit,
+  check and diff settings. Published Runs use the current Révision distante; Runs de brouillon
+  retain their original frozen commit and require the editor role.
 - **Inspect** your inventory (read-only; vault-encrypted values are never shown).
 - **Browse** the Dépôt Ansible files at the Révision distante (read-only, Monaco editor).
 - **Edit** them in a Brouillon ("draft"): autosaved to its own Git branch, pushed as a pull

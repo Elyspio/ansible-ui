@@ -25,6 +25,7 @@ import { mono } from "@/config/theme";
 import { StatusChip } from "@/view/components/StatusChip";
 import { DraftRunChip } from "@/view/drafts/DraftRunChip";
 import { Terminal } from "./Terminal";
+import { RunAgainButton } from "./RunAgainButton";
 
 export function RunPage() {
 	const { id } = useParams<{ id: string }>();
@@ -91,6 +92,7 @@ export function RunPage() {
 								{run.playbook}
 							</Typography>
 							<StatusChip status={run.status} />
+							<RunAgainButton run={run} />
 							{active && (
 								<Button
 									size="small"
